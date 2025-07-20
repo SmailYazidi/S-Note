@@ -169,6 +169,7 @@ export default function HomePage() {
     await fetch("/api/auth/signout", { method: "POST" })
     window.location.reload()
   }
+ 
 
   return (
     <div className="flex h-screen bg-background text-foreground">
