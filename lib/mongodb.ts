@@ -18,9 +18,7 @@ if (!cached) {
 async function connectToDatabase(): Promise<typeof mongoose> {
   if (cached.conn) return cached.conn;
   if (!cached.promise) {
-    cached.promise = mongoose.connect(MONGODB_URI, {
-      dbName: "s-note", // 👈 this ensures the DB is correct
-    });
+    cached.promise = mongoose.connect(MONGODB_URI);
   }
   cached.conn = await cached.promise;
   return cached.conn;
