@@ -31,7 +31,11 @@ interface Item {
   createdAt: string
   updatedAt: string
 }
-
+interface User {
+  id: string;
+  email: string;
+  name: string;
+}
 type CurrentView = "notes" | "dashboard"
 
 export default function HomePage() {
@@ -48,7 +52,7 @@ export default function HomePage() {
   const [itemToDelete, setItemToDelete] = useState<Item | null>(null)
   const [copiedItemId, setCopiedItemId] = useState<string | null>(null)
   const [showPasswordContent, setShowPasswordContent] = useState<Record<string, boolean>>({})
-
+  const [user, setUser] = useState<User | null>(null)
   const selectedItem = items.find((item) => item.id === selectedItemId) || null
 
   // Fetch items from API on mount
@@ -169,7 +173,10 @@ export default function HomePage() {
     await fetch("/api/auth/signout", { method: "POST" })
     window.location.reload()
   }
- 
+   if (!user) {
+    // Show login form if not logged in
+    return <LoginForm />
+  }
 
   return (
     <div className="flex h-screen bg-background text-foreground">
