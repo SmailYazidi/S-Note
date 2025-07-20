@@ -6,77 +6,69 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import type { NoteItem } from "@/lib/storage"
 
-interface AllItemsViewProps {
-  items: NoteItem[] // Now receives all items, filtering happens internally
-  setSelectedItemId: (id: string | null) => void
-  handleNewItem: () => void
-  initialFilterType: "all" | "note" | "password" // New prop for initial filter
-  setFilterType: (type: "all" | "note" | "password") => void // New prop to update parent filter
-}
 
-const ITEMS_PER_PAGE = 10
+type Item = {
+  id: string;
+  type: "note" | "password";
+  title: string;
+  content: string;
+  updatedAt: string;
+};
+
+type AllItemsViewProps = {
+  items: Item[];
+  onNewItem: () => void;
+  onSelectItem: (id: string) => void;
+  selectedItemId: string | null;
+};
 
 export default function AllItemsView({
   items,
-  setSelectedItemId,
-  handleNewItem,
-  initialFilterType,
-  setFilterType,
+  onNewItem,
+  onSelectItem,
+  selectedItemId,
 }: AllItemsViewProps) {
-  const [currentPage, setCurrentPage] = useState(1)
-  const [searchTerm, setSearchTerm] = useState("") // Local state for search
-  // filterType is now controlled by parent via initialFilterType and set via setFilterType
-  const [localFilterType, setLocalFilterType] = useState<"all" | "note" | "password">(initialFilterType)
+  const [searchTerm, setSearchTerm] = useState("");
+  const [localFilterType, setLocalFilterType] = useState<"all" | "note" | "password">("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
-  // Sync localFilterType with initialFilterType prop
-  useEffect(() => {
-    setLocalFilterType(initialFilterType)
-    // Reset search term when filter type changes from external source
-    setSearchTerm("")
-  }, [initialFilterType])
-
+  // Filter items based on search term and filter type
   const filteredItems = useMemo(() => {
-    return items
-      .filter((item) => {
-        const matchesSearch =
-          item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          item.content.toLowerCase().includes(searchTerm.toLowerCase())
-        const matchesType = localFilterType === "all" || item.type === localFilterType
-        return matchesSearch && matchesType
-      })
-      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-  }, [items, searchTerm, localFilterType])
+    return items.filter((item) => {
+      const matchesType = localFilterType === "all" || item.type === localFilterType;
+      const matchesSearch =
+        item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.content.toLowerCase().includes(searchTerm.toLowerCase());
+      return matchesType && matchesSearch;
+    });
+  }, [items, searchTerm, localFilterType]);
 
-  const totalPages = Math.ceil(filteredItems.length / ITEMS_PER_PAGE)
-  const paginatedItems = useMemo(() => {
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
-    const endIndex = startIndex + ITEMS_PER_PAGE
-    return filteredItems.slice(startIndex, endIndex)
-  }, [filteredItems, currentPage])
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
+  const paginatedItems = filteredItems.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
-  const handleNextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1)
-    }
-  }
+  // Handlers
+  const handleLocalFilterChange = (value: "all" | "note" | "password") => {
+    setLocalFilterType(value);
+    setCurrentPage(1); // Reset to first page on filter change
+  };
 
   const handlePreviousPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1)
-    }
-  }
+    setCurrentPage((page) => Math.max(page - 1, 1));
+  };
 
-  // Reset page to 1 when search or filter changes
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [searchTerm, localFilterType])
+  const handleNextPage = () => {
+    setCurrentPage((page) => Math.min(page + 1, totalPages));
+  };
 
-  const handleLocalFilterChange = (value: "all" | "note" | "password") => {
-    setLocalFilterType(value)
-    setFilterType(value) // Also update the parent's filterType
-  }
+  const handleNewItem = () => {
+    onNewItem();
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -102,7 +94,6 @@ export default function AllItemsView({
               <SelectItem value="password">Passwords</SelectItem>
             </SelectContent>
           </Select>
-          {/* Add New button for All Items View header */}
           <Button onClick={handleNewItem} className="w-full sm:w-auto">
             <Plus className="mr-2 h-4 w-4" /> Add New
           </Button>
@@ -120,8 +111,10 @@ export default function AllItemsView({
           {paginatedItems.map((item) => (
             <Card
               key={item.id}
-              className="cursor-pointer hover:bg-accent/50 transition-colors"
-              onClick={() => setSelectedItemId(item.id)}
+              className={`cursor-pointer hover:bg-accent/50 transition-colors ${
+                selectedItemId === item.id ? "bg-accent" : ""
+              }`}
+              onClick={() => onSelectItem(item.id)}
             >
               <CardContent className="p-4 flex items-center gap-4">
                 {item.type === "note" ? (
@@ -158,5 +151,5 @@ export default function AllItemsView({
         </div>
       )}
     </div>
-  )
+  );
 }

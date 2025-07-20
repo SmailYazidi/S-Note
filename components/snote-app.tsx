@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect } from "react"
 import { v4 as uuidv4 } from "uuid"
 import { Plus, Edit, Trash, FileText, Lock, LogOut, KeyRound, Eye, EyeOff } from "lucide-react"
 
@@ -20,126 +20,99 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
 import { SidebarTrigger } from "@/components/ui/sidebar"
-import { loadItems, saveItems, type NoteItem } from "@/lib/storage"
-import { isLoggedIn, logout } from "@/lib/auth"
-import LoginForm from "@/components/login-form"
-import ChangePasswordDialog from "@/components/change-password-dialog"
 
 export default function SNoteApp() {
-  const [items, setItems] = useState<NoteItem[]>([])
-  const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
-  const [searchTerm, setSearchTerm] = useState("")
+  // State
+  const [items, setItems] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("snote-items")
+      return saved ? JSON.parse(saved) : []
+    }
+    return []
+  })
+  const [selectedItemId, setSelectedItemId] = useState(null)
+  const [editingItem, setEditingItem] = useState(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [editingItem, setEditingItem] = useState<NoteItem | null>(null)
-  const [loggedIn, setLoggedIn] = useState(false)
   const [isChangePasswordDialogOpen, setIsChangePasswordDialogOpen] = useState(false)
-  const [showPasswordContent, setShowPasswordContent] = useState<{ [key: string]: boolean }>({})
+  const [showPasswordContent, setShowPasswordContent] = useState({})
 
+  // Derived state
+  const selectedItem = items.find((item) => item.id === selectedItemId) || null
+
+  // Save items to localStorage whenever items change
   useEffect(() => {
-    const status = isLoggedIn()
-    setLoggedIn(status)
-    if (status) {
-      setItems(loadItems())
-    }
-  }, [])
+    localStorage.setItem("snote-items", JSON.stringify(items))
+  }, [items])
 
-  useEffect(() => {
-    if (loggedIn) {
-      setItems(loadItems())
-    }
-  }, [loggedIn])
-
-  useEffect(() => {
-    if (loggedIn) {
-      saveItems(items)
-    }
-  }, [items, loggedIn])
-
-  const filteredItems = useMemo(() => {
-    return items
-      .filter(
-        (item) =>
-          item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          item.content.toLowerCase().includes(searchTerm.toLowerCase()),
-      )
-      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-  }, [items, searchTerm])
-
-  const selectedItem = useMemo(() => {
-    return items.find((item) => item.id === selectedItemId)
-  }, [items, selectedItemId])
-
-  const handleNewItem = () => {
-    setEditingItem({
+  // Handlers
+  function handleNewItem() {
+    const newItem = {
       id: uuidv4(),
       type: "note",
       title: "",
       content: "",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-    })
-    setIsDialogOpen(true)
-  }
-
-  const handleEditItem = (item: NoteItem) => {
-    setEditingItem({ ...item })
-    setIsDialogOpen(true)
-  }
-
-  const handleSaveItem = () => {
-    if (!editingItem) return
-
-    const now = new Date().toISOString()
-    const itemToSave = { ...editingItem, updatedAt: now }
-
-    if (items.some((item) => item.id === itemToSave.id)) {
-      setItems(items.map((item) => (item.id === itemToSave.id ? itemToSave : item)))
-    } else {
-      setItems([...items, { ...itemToSave, createdAt: now }])
     }
-    setIsDialogOpen(false)
-    setSelectedItemId(itemToSave.id)
-    setEditingItem(null)
+    setEditingItem(newItem)
+    setIsDialogOpen(true)
   }
 
-  const handleDeleteItem = () => {
+  function handleEditItem(item) {
+    setEditingItem(item)
+    setIsDialogOpen(true)
+  }
+
+  function handleSaveItem() {
     if (!editingItem) return
-    setItems(items.filter((item) => item.id !== editingItem.id))
+    const now = new Date().toISOString()
+    if (items.some((item) => item.id === editingItem.id)) {
+      // Update existing
+      setItems((prev) =>
+        prev.map((item) =>
+          item.id === editingItem.id ? { ...editingItem, updatedAt: now } : item
+        )
+      )
+    } else {
+      // Add new
+      setItems((prev) => [...prev, { ...editingItem, createdAt: now, updatedAt: now }])
+    }
+    setSelectedItemId(editingItem.id)
     setIsDialogOpen(false)
+  }
+
+  function handleDeleteItem() {
+    if (!editingItem) return
+    setItems((prev) => prev.filter((item) => item.id !== editingItem.id))
     setSelectedItemId(null)
     setEditingItem(null)
+    setIsDialogOpen(false)
   }
 
-  const handleLogout = () => {
-    logout()
-    setLoggedIn(false)
-    setSelectedItemId(null)
-    setShowPasswordContent({})
+  function togglePasswordVisibility(id) {
+    setShowPasswordContent((prev) => ({ ...prev, [id]: !prev[id] }))
   }
 
-  const togglePasswordVisibility = (id: string) => {
-    setShowPasswordContent((prev) => ({
-      ...prev,
-      [id]: !prev[id],
-    }))
+  function handleViewAll(type) {
+    // Example: select the first item of the given type
+    const firstOfType = items.find((item) => item.type === type)
+    if (firstOfType) setSelectedItemId(firstOfType.id)
   }
 
-  if (!loggedIn) {
-    return <LoginForm onLoginSuccess={() => setLoggedIn(true)} />
+  function handleLogout() {
+    // Add your logout logic here
+    alert("Logged out (stub)")
   }
 
   return (
     <div className="flex flex-col h-screen bg-background text-foreground">
       <header className="flex items-center justify-between p-4 border-b">
         <div className="flex items-center gap-2">
-          {/* Sidebar Trigger for mobile */}
           <SidebarTrigger className="-ml-1 md:hidden" />
           <h1 className="text-2xl font-bold">SNote App</h1>
         </div>
         <div className="flex items-center gap-2">
           <Button onClick={handleNewItem} className="hidden md:flex">
-            {" "}
-            {/* Show "Add New" on desktop header */}
             <Plus className="mr-2 h-4 w-4" /> Add New
           </Button>
           <Button variant="ghost" size="sm" onClick={() => setIsChangePasswordDialogOpen(true)}>
@@ -155,14 +128,17 @@ export default function SNoteApp() {
       </header>
 
       <main className="flex flex-1 overflow-hidden">
-        {/* The sidebar content is now in AppSidebar. This main area is for the selected item. */}
         <div className="flex-1 p-4 overflow-auto">
           {selectedItem ? (
             <Card className="h-full flex flex-col">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2">
-                    {selectedItem.type === "note" ? <FileText className="h-5 w-5" /> : <Lock className="h-5 w-5" />}
+                    {selectedItem.type === "note" ? (
+                      <FileText className="h-5 w-5" />
+                    ) : (
+                      <Lock className="h-5 w-5" />
+                    )}
                     {selectedItem.title || "Untitled"}
                   </CardTitle>
                   <div className="flex gap-2">
@@ -201,11 +177,7 @@ export default function SNoteApp() {
                       onClick={() => togglePasswordVisibility(selectedItem.id)}
                       className="shrink-0"
                     >
-                      {showPasswordContent[selectedItem.id] ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
+                      {showPasswordContent[selectedItem.id] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       <span className="sr-only">
                         {showPasswordContent[selectedItem.id] ? "Hide password" : "Show password"}
                       </span>
@@ -217,14 +189,14 @@ export default function SNoteApp() {
               </CardContent>
               <CardFooter className="text-sm text-muted-foreground">
                 <p className="text-red-500 font-semibold">
-                  Warning: Passwords stored in localStorage are not secure. This app is for demonstration purposes only.
+                  Warning: Passwords stored in localStorage are not secure. This app is for demonstration purposes
+                  only.
                 </p>
               </CardFooter>
             </Card>
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-4">
               <p>Select an item or click "Add New" to get started.</p>
-              {/* "Add New" button for mobile screens */}
               <Button onClick={handleNewItem} className="md:hidden">
                 <Plus className="mr-2 h-4 w-4" /> Add New
               </Button>
@@ -253,7 +225,7 @@ export default function SNoteApp() {
               </Label>
               <Select
                 value={editingItem?.type || "note"}
-                onValueChange={(value: "note" | "password") =>
+                onValueChange={(value) =>
                   setEditingItem((prev) => (prev ? { ...prev, type: value } : null))
                 }
               >
@@ -285,25 +257,39 @@ export default function SNoteApp() {
                 id="content"
                 value={editingItem?.content || ""}
                 onChange={(e) => setEditingItem((prev) => (prev ? { ...prev, content: e.target.value } : null))}
-                className="col-span-3 min-h-[100px]"
+                className="col-span-3"
+                rows={6}
               />
             </div>
           </div>
           <DialogFooter>
-            {editingItem?.id && items.some((item) => item.id === editingItem.id) && (
-              <Button variant="destructive" onClick={handleDeleteItem} className="mr-auto">
-                Delete
-              </Button>
-            )}
-            <Button type="submit" onClick={handleSaveItem}>
-              Save changes
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+              Cancel
             </Button>
+            <Button onClick={handleSaveItem}>Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Change Password Dialog */}
-      <ChangePasswordDialog isOpen={isChangePasswordDialogOpen} onClose={() => setIsChangePasswordDialogOpen(false)} />
+      <Dialog open={isChangePasswordDialogOpen} onOpenChange={setIsChangePasswordDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Change Password</DialogTitle>
+            <DialogDescription>Change your master password here.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            {/* Implement your password change form here */}
+            <p className="text-muted-foreground">This feature is not implemented yet.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsChangePasswordDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button disabled>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
