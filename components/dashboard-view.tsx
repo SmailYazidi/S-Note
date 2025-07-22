@@ -1,32 +1,33 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { FileText, Lock, ListChecks, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import type { NoteItem } from "@/lib/storage"
 
-export default function DashboardView() {
-  // Example state - replace with your actual data fetching logic
-  const [totalItems, setTotalItems] = useState(0)
-  const [totalNotes, setTotalNotes] = useState(0)
-  const [totalPasswords, setTotalPasswords] = useState(0)
+interface DashboardViewProps {
+  items: NoteItem[]
+  handleNewItem: () => void
+  setCurrentView: (view: "notes" | "dashboard") => void
+  setFilterType: (type: "all" | "note" | "password") => void
+  setSelectedItemId: (id: string | null) => void
+}
 
-  useEffect(() => {
-    // Fetch data here or receive as props
-    // For demo, setting some static numbers
-    setTotalNotes(12)
-    setTotalPasswords(8)
-    setTotalItems(20)
-  }, [])
+export default function DashboardView({
+  items,
+  handleNewItem,
+  setCurrentView,
+  setFilterType,
+  setSelectedItemId,
+}: DashboardViewProps) {
+  const totalItems = items.length
+  const totalNotes = items.filter((item) => item.type === "note").length
+  const totalPasswords = items.filter((item) => item.type === "password").length
 
-  function handleNewItem() {
-    // Handle adding new item - maybe open modal or navigate
-    console.log("Add new item clicked")
-  }
-
-  function handleViewAll(type: "note" | "password") {
-    // Handle view all notes or passwords - navigate or open modal
-    console.log("View all", type)
+  const handleViewAll = (type: "note" | "password") => {
+    setCurrentView("notes")
+    setFilterType(type)
+    setSelectedItemId(null) // Deselect any item
   }
 
   return (
@@ -44,7 +45,6 @@ export default function DashboardView() {
           </Button>
         </CardContent>
       </Card>
-
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Total Notes</CardTitle>
@@ -58,7 +58,6 @@ export default function DashboardView() {
           </Button>
         </CardContent>
       </Card>
-
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Total Passwords</CardTitle>

@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
-
+import { useState, useEffect, useMemo } from "react"
+import { v4 as uuidv4 } from "uuid"
 import { Edit, Trash, FileText, Lock, LogOut, Eye, EyeOff, ArrowLeft, Copy, Check } from "lucide-react"
 import AllItemsView from "@/components/all-items-view"
 
@@ -13,67 +13,66 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
+import { loadItems, saveItems, type NoteItem } from "@/lib/storage"
 import DesktopSidebar from "@/components/desktop-sidebar"
 import MobileSidebar from "@/components/mobile-sidebar"
 import DashboardView from "@/components/dashboard-view"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useToast } from "@/hooks/use-toast"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { useSession, signOut } from "next-auth/react" // Import useSession and signOut
+import LoginForm from "@/components/login-form" // Keep LoginForm for unauthenticated state
 
-import LoginForm from "@/components/login-form"
-
-type ItemType = "note" | "password"
-
-interface Item {
-  id: string
-  type: ItemType
-  title: string
-  content: string
-  createdAt: string
-  updatedAt: string
-}
-interface User {
-  id: string;
-  email: string;
-  name: string;
-}
 type CurrentView = "notes" | "dashboard"
 
 export default function HomePage() {
+  const { data: session, status } = useSession() // Use useSession hook
+  const loggedIn = status === "authenticated" // Determine login status
+
+  const [items, setItems] = useState<NoteItem[]>([])
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [editingItem, setEditingItem] = useState<NoteItem | null>(null)
+  const [showPasswordContent, setShowPasswordContent] = useState<{ [key: string]: boolean }>({})
+  const [currentView, setCurrentView] = useState<CurrentView>("notes")
+  const [filterType, setFilterType] = useState<"all" | "note" | "password">("all")
+  const [isConfirmDeleteDialogOpen, setIsConfirmDeleteDialogOpen] = useState(false)
+  const [itemToDelete, setItemToDelete] = useState<NoteItem | null>(null)
+  const [copiedItemId, setCopiedItemId] = useState<string | null>(null)
+
   const isMobile = useIsMobile()
   const { toast } = useToast()
 
-  // State
-  const [items, setItems] = useState<Item[]>([])
-  const [currentView, setCurrentView] = useState<CurrentView>("notes")
-  const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
-  const [editingItem, setEditingItem] = useState<Item | null>(null)
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [isConfirmDeleteDialogOpen, setIsConfirmDeleteDialogOpen] = useState(false)
-  const [itemToDelete, setItemToDelete] = useState<Item | null>(null)
-  const [copiedItemId, setCopiedItemId] = useState<string | null>(null)
-  const [showPasswordContent, setShowPasswordContent] = useState<Record<string, boolean>>({})
-  const [user, setUser] = useState<User | null>(null)
-  const selectedItem = items.find((item) => item.id === selectedItemId) || null
-
-  // Fetch items from API on mount
   useEffect(() => {
-    fetch("/api/note/list")
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to fetch notes")
-        return res.json()
-      })
-      .then((data: { items: Item[] }) => {
-        setItems(data.items)
-      })
-      .catch(() => {
-        toast({ title: "Error", description: "Failed to load notes", variant: "destructive" })
-      })
-  }, [])
+    if (loggedIn) {
+      setItems(loadItems())
+    } else {
+      setItems([]) // Clear items if logged out
+    }
+  }, [loggedIn])
 
-  // New item handler (open dialog with empty item)
-  function handleNewItem() {
+  useEffect(() => {
+    if (loggedIn) {
+      saveItems(items)
+    }
+  }, [items, loggedIn])
+
+  const selectedItem = useMemo(() => {
+    return items.find((item) => item.id === selectedItemId)
+  }, [items, selectedItemId])
+
+  const handleNewItem = () => {
     setEditingItem({
-      id: "", // empty means new
+      id: uuidv4(),
       type: "note",
       title: "",
       content: "",
@@ -83,99 +82,74 @@ export default function HomePage() {
     setIsDialogOpen(true)
   }
 
-  // Save item handler - create or update via API
-  async function handleSaveItem() {
-    if (!editingItem) return
-
-    try {
-      let res
-      if (editingItem.id) {
-        // Update existing
-        res = await fetch(`/api/note/update`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(editingItem),
-        })
-      } else {
-        // Create new
-        res = await fetch(`/api/note/create`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(editingItem),
-        })
-      }
-
-      if (!res.ok) throw new Error("Failed to save")
-
-      const savedItem: Item = await res.json()
-
-      // Update local state
-      setItems((prev) => {
-        if (editingItem.id) {
-          // update
-          return prev.map((item) => (item.id === savedItem.id ? savedItem : item))
-        } else {
-          // add new
-          return [savedItem, ...prev]
-        }
-      })
-
-      setSelectedItemId(savedItem.id)
-      setIsDialogOpen(false)
-      toast({ title: "Success", description: "Item saved." })
-    } catch (error) {
-      toast({ title: "Error", description: "Failed to save item.", variant: "destructive" })
-    }
+  const handleEditItem = (item: NoteItem) => {
+    setEditingItem({ ...item })
+    setIsDialogOpen(true)
   }
 
-  // Delete item handlers
-  function handleDeleteClick(item: Item) {
+  const handleSaveItem = () => {
+    if (!editingItem) return
+
+    const now = new Date().toISOString()
+    const itemToSave = { ...editingItem, updatedAt: now }
+
+    if (items.some((item) => item.id === itemToSave.id)) {
+      setItems(items.map((item) => (item.id === itemToSave.id ? itemToSave : item)))
+    } else {
+      setItems([...items, { ...itemToSave, createdAt: now }])
+    }
+    setIsDialogOpen(false)
+    setSelectedItemId(itemToSave.id)
+    setEditingItem(null)
+  }
+
+  const handleDeleteClick = (item: NoteItem) => {
     setItemToDelete(item)
     setIsConfirmDeleteDialogOpen(true)
   }
 
-  async function confirmDeleteItem() {
+  const confirmDeleteItem = () => {
     if (!itemToDelete) return
-
-    try {
-      const res = await fetch(`/api/note/delete`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: itemToDelete.id }),
-      })
-
-      if (!res.ok) throw new Error("Delete failed")
-
-      setItems((prev) => prev.filter((item) => item.id !== itemToDelete.id))
-      setSelectedItemId(null)
-      setItemToDelete(null)
-      setIsConfirmDeleteDialogOpen(false)
-      toast({ title: "Deleted", description: "Item deleted." })
-    } catch (error) {
-      toast({ title: "Error", description: "Failed to delete item.", variant: "destructive" })
-    }
+    setItems(items.filter((item) => item.id !== itemToDelete.id))
+    setIsConfirmDeleteDialogOpen(false)
+    setIsDialogOpen(false) // Close edit dialog if open
+    setSelectedItemId(null) // Deselect item after deletion
+    setItemToDelete(null)
+    toast({
+      title: "Item deleted!",
+      description: `"${itemToDelete.title || "Untitled"}" has been removed.`,
+      variant: "destructive",
+    })
   }
 
-  // Copy content
-  function handleCopyContent(content: string, id: string) {
+  const handleLogout = () => {
+    signOut() // Use signOut from next-auth/react
+    setSelectedItemId(null)
+    setShowPasswordContent({})
+    setItems([])
+  }
+
+  const togglePasswordVisibility = (id: string) => {
+    setShowPasswordContent((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }))
+  }
+
+  const handleCopyContent = (content: string, itemId: string) => {
     navigator.clipboard.writeText(content)
-    setCopiedItemId(id)
-    setTimeout(() => setCopiedItemId(null), 2000)
+    setCopiedItemId(itemId)
+    toast({
+      title: "Content copied!",
+      description: "The item's content has been copied to your clipboard.",
+    })
+    setTimeout(() => {
+      setCopiedItemId(null)
+    }, 1000) // Revert after 1 second
   }
 
-  // Toggle password visibility
-  function togglePasswordVisibility(id: string) {
-    setShowPasswordContent((prev) => ({ ...prev, [id]: !prev[id] }))
-  }
-
-  // Logout handler example (you can adapt to your auth solution)
-  async function handleLogout() {
-    await fetch("/api/auth/signout", { method: "POST" })
-    window.location.reload()
-  }
-   if (!user) {
-    // Show login form if not logged in
-    return <LoginForm />
+  if (!loggedIn) {
+    return <LoginForm /> // LoginForm no longer needs onLoginSuccess prop
   }
 
   return (
@@ -189,11 +163,13 @@ export default function HomePage() {
                 currentView={currentView}
                 handleNewItem={handleNewItem}
                 setSelectedItemId={setSelectedItemId}
+                setFilterType={setFilterType}
               />
             )}
             <h1 className="text-2xl font-bold">S-Note</h1>
           </div>
           <div className="flex items-center gap-2">
+            {/* Removed Change Password Button */}
             <ThemeToggle />
             <Button variant="ghost" size="sm" onClick={handleLogout}>
               <LogOut className="w-5 h-5" />
@@ -208,14 +184,17 @@ export default function HomePage() {
               currentView={currentView}
               handleNewItem={handleNewItem}
               setSelectedItemId={setSelectedItemId}
+              setFilterType={setFilterType}
             />
           )}
+
           <div className="flex-1 p-4 overflow-auto">
             {currentView === "dashboard" ? (
               <DashboardView
                 items={items}
                 handleNewItem={handleNewItem}
                 setCurrentView={setCurrentView}
+                setFilterType={setFilterType}
                 setSelectedItemId={setSelectedItemId}
               />
             ) : selectedItem ? (
@@ -245,7 +224,7 @@ export default function HomePage() {
                         )}
                         <span className="sr-only">Copy content</span>
                       </Button>
-                      <Button variant="outline" size="icon" onClick={() => { setEditingItem(selectedItem); setIsDialogOpen(true); }}>
+                      <Button variant="outline" size="icon" onClick={() => handleEditItem(selectedItem)}>
                         <Edit className="h-4 w-4" />
                         <span className="sr-only">Edit</span>
                       </Button>
@@ -273,7 +252,11 @@ export default function HomePage() {
                         onClick={() => togglePasswordVisibility(selectedItem.id)}
                         className="shrink-0"
                       >
-                        {showPasswordContent[selectedItem.id] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        {showPasswordContent[selectedItem.id] ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
                         <span className="sr-only">
                           {showPasswordContent[selectedItem.id] ? "Hide password" : "Show password"}
                         </span>
@@ -289,6 +272,8 @@ export default function HomePage() {
                 items={items}
                 setSelectedItemId={setSelectedItemId}
                 handleNewItem={handleNewItem}
+                initialFilterType={filterType}
+                setFilterType={setFilterType}
               />
             )}
           </div>
@@ -300,78 +285,80 @@ export default function HomePage() {
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>
-              {editingItem?.id ? "Edit Item" : "Add New Item"}
+              {editingItem?.id && items.some((item) => item.id === editingItem.id) ? "Edit Item" : "Add New Item"}
             </DialogTitle>
           </DialogHeader>
-          {editingItem && (
-            <>
-              <div className="flex flex-col space-y-4">
-                <Label htmlFor="type">Type</Label>
-                <Select
-                  value={editingItem.type}
-                  onValueChange={(val: ItemType) =>
-                    setEditingItem({ ...editingItem, type: val })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="note">Note</SelectItem>
-                    <SelectItem value="password">Password</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Label htmlFor="title">Title</Label>
-                <Input
-                  id="title"
-                  value={editingItem.title}
-                  onChange={(e) =>
-                    setEditingItem({ ...editingItem, title: e.target.value })
-                  }
-                  placeholder="Enter title"
-                />
-
-                <Label htmlFor="content">Content</Label>
-                <Textarea
-                  id="content"
-                  value={editingItem.content}
-                  onChange={(e) =>
-                    setEditingItem({ ...editingItem, content: e.target.value })
-                  }
-                  placeholder={
-                    editingItem.type === "password" ? "Enter password" : "Enter note content"
-                  }
-                />
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleSaveItem}>Save</Button>
-              </DialogFooter>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Confirm Delete Dialog */}
-      <Dialog open={isConfirmDeleteDialogOpen} onOpenChange={setIsConfirmDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirm Delete</DialogTitle>
-          </DialogHeader>
-          <p>Are you sure you want to delete "{itemToDelete?.title}"?</p>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="type" className="text-right">
+                Type
+              </Label>
+              <Select
+                value={editingItem?.type || "note"}
+                onValueChange={(value: "note" | "password") =>
+                  setEditingItem((prev) => (prev ? { ...prev, type: value } : null))
+                }
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="note">Note</SelectItem>
+                  <SelectItem value="password">Password</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="title" className="text-right">
+                Title
+              </Label>
+              <Input
+                id="title"
+                value={editingItem?.title || ""}
+                onChange={(e) => setEditingItem((prev) => (prev ? { ...prev, title: e.target.value } : null))}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-start gap-4">
+              <Label htmlFor="content" className="text-right pt-2">
+                Content
+              </Label>
+              <Textarea
+                id="content"
+                value={editingItem?.content || ""}
+                onChange={(e) => setEditingItem((prev) => (prev ? { ...prev, content: e.target.value } : null))}
+                className="col-span-3 min-h-[100px]"
+              />
+            </div>
+          </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsConfirmDeleteDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={confirmDeleteItem}>
-              Delete
+            <Button type="submit" onClick={handleSaveItem}>
+              Save changes
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isConfirmDeleteDialogOpen} onOpenChange={setIsConfirmDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete your item{" "}
+              <span className="font-semibold">"{itemToDelete?.title || "Untitled"}"</span> and remove its data from your
+              local storage.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setIsConfirmDeleteDialogOpen(false)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteItem}>Continue</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
