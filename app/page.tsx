@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { v4 as uuidv4 } from "uuid"
-import { Edit, Trash, FileText, Lock, LogOut, Eye, EyeOff, ArrowLeft, Copy, Check } from "lucide-react"
+import { Edit, Trash, FileText, Lock, LogOut, KeyRound, Eye, EyeOff, ArrowLeft, Copy, Check } from "lucide-react"
 import AllItemsView from "@/components/all-items-view"
 
 import { Button } from "@/components/ui/button"
@@ -14,6 +14,9 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
 import { loadItems, saveItems, type NoteItem } from "@/lib/storage"
+import { isLoggedIn, logout } from "@/lib/auth"
+import LoginForm from "@/components/login-form"
+import ChangePasswordDialog from "@/components/change-password-dialog"
 import DesktopSidebar from "@/components/desktop-sidebar"
 import MobileSidebar from "@/components/mobile-sidebar"
 import DashboardView from "@/components/dashboard-view"
@@ -29,19 +32,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { useSession, signOut } from "next-auth/react" // Import useSession and signOut
-import LoginForm from "@/components/login-form" // Keep LoginForm for unauthenticated state
 
 type CurrentView = "notes" | "dashboard"
 
 export default function HomePage() {
-  const { data: session, status } = useSession() // Use useSession hook
-  const loggedIn = status === "authenticated" // Determine login status
-
   const [items, setItems] = useState<NoteItem[]>([])
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<NoteItem | null>(null)
+  const [loggedIn, setLoggedIn] = useState(false)
+  const [isChangePasswordDialogOpen, setIsChangePasswordDialogOpen] = useState(false)
   const [showPasswordContent, setShowPasswordContent] = useState<{ [key: string]: boolean }>({})
   const [currentView, setCurrentView] = useState<CurrentView>("notes")
   const [filterType, setFilterType] = useState<"all" | "note" | "password">("all")
@@ -53,10 +53,16 @@ export default function HomePage() {
   const { toast } = useToast()
 
   useEffect(() => {
+    const status = isLoggedIn()
+    setLoggedIn(status)
+    if (status) {
+      setItems(loadItems())
+    }
+  }, [])
+
+  useEffect(() => {
     if (loggedIn) {
       setItems(loadItems())
-    } else {
-      setItems([]) // Clear items if logged out
     }
   }, [loggedIn])
 
@@ -123,7 +129,8 @@ export default function HomePage() {
   }
 
   const handleLogout = () => {
-    signOut() // Use signOut from next-auth/react
+    logout()
+    setLoggedIn(false)
     setSelectedItemId(null)
     setShowPasswordContent({})
     setItems([])
@@ -149,7 +156,7 @@ export default function HomePage() {
   }
 
   if (!loggedIn) {
-    return <LoginForm /> // LoginForm no longer needs onLoginSuccess prop
+    return <LoginForm onLoginSuccess={() => setLoggedIn(true)} />
   }
 
   return (
@@ -169,7 +176,10 @@ export default function HomePage() {
             <h1 className="text-2xl font-bold">S-Note</h1>
           </div>
           <div className="flex items-center gap-2">
-            {/* Removed Change Password Button */}
+            <Button variant="ghost" size="sm" onClick={() => setIsChangePasswordDialogOpen(true)}>
+              <KeyRound className="w-5 h-5" />
+              <span className="sr-only">Change Password</span>
+            </Button>
             <ThemeToggle />
             <Button variant="ghost" size="sm" onClick={handleLogout}>
               <LogOut className="w-5 h-5" />
@@ -341,6 +351,9 @@ export default function HomePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Change Password Dialog */}
+      <ChangePasswordDialog isOpen={isChangePasswordDialogOpen} onClose={() => setIsChangePasswordDialogOpen(false)} />
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={isConfirmDeleteDialogOpen} onOpenChange={setIsConfirmDeleteDialogOpen}>

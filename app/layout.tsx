@@ -4,7 +4,6 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster" // Import Toaster
-import { SessionProvider } from "next-auth/react" // Import SessionProvider
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -23,12 +22,8 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <SessionProvider>
-            {" "}
-            {/* Wrap children with SessionProvider */}
-            {children}
-            <Toaster />
-          </SessionProvider>
+          {children}
+          <Toaster /> {/* Add Toaster component here */}
         </ThemeProvider>
       </body>
     </html>

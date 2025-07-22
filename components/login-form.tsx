@@ -1,20 +1,28 @@
 "use client"
+
+import type React from "react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { signIn } from "next-auth/react" // Import signIn from next-auth/react
-import { Chrome } from "lucide-react" // Import Google icon
+import { login } from "@/lib/auth" // Correctly import the login function
 
-export default function LoginForm() {
+interface LoginFormProps {
+  onLoginSuccess: () => void
+}
+
+export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
+  const [password, setPassword] = useState("")
   const [error, setError] = useState("")
 
-  const handleGoogleLogin = async () => {
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
     setError("")
-    try {
-      await signIn("google", { callbackUrl: "/" }) // Redirect to home after successful login
-    } catch (e) {
-      setError("Failed to sign in with Google. Please try again.")
-      console.error("Google sign-in error:", e)
+    if (login(password)) {
+      // Use the imported login function
+      onLoginSuccess()
+    } else {
+      setError("Invalid password. Please try again.")
     }
   }
 
@@ -23,15 +31,26 @@ export default function LoginForm() {
       <Card className="w-full max-w-sm">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl">SNote App Login</CardTitle>
-          <CardDescription>Sign in to access your notes.</CardDescription>
+          <CardDescription>Enter your password to access your notes.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4">
-            {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-            <Button onClick={handleGoogleLogin} className="w-full">
-              <Chrome className="mr-2 h-4 w-4" /> Login with Google
+          <form onSubmit={handleSubmit} className="grid gap-4">
+            <div className="grid gap-2">
+              <label htmlFor="password">Password</label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+            {error && <p className="text-red-500 text-sm">{error}</p>}
+            <Button type="submit" className="w-full">
+              Login
             </Button>
-          </div>
+          </form>
         </CardContent>
       </Card>
     </div>
