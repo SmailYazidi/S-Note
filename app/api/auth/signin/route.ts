@@ -7,10 +7,10 @@ import { createSession } from "@/lib/session-store"
 export async function POST(req: NextRequest) {
   try {
     const { email, password } = await req.json()
-
+console.log(email,password)
     await connectToDatabase()
     const user = await UserModel.findOne({ email })
-
+console.log(user)
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
