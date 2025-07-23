@@ -15,7 +15,7 @@ import { useToast } from "@/hooks/use-toast"
 export default function SignUpPage() {
   const [email, setEmail] = useState("")
   const [username, setUsername] = useState("")
-  const [displayName, setDisplayName] = useState("")
+
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -34,7 +34,7 @@ export default function SignUpPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email, username, displayName, password }),
+        body: JSON.stringify({ email, username, password }),
       })
 
       const data = await response.json()
@@ -128,20 +128,7 @@ export default function SignUpPage() {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="displayName" className="text-white">
-                Display Name
-              </Label>
-              <Input
-                id="displayName"
-                type="text"
-                placeholder="Your display name"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                required
-                className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
-              />
-            </div>
+
 
             <div className="space-y-2">
               <Label htmlFor="password" className="text-white">
