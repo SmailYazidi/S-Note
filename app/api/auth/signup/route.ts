@@ -1,14 +1,13 @@
 import { NextResponse } from 'next/server';
-import connectToDatabase from "@/lib/mongodb"// Adjust path if needed
-import { UserModel } from "@/models/User"
+import connectToDatabase from '@/lib/mongodb';
+import { UserModel } from '@/models/User';
 import bcrypt from 'bcryptjs';
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { email, username, password } = body;
+    const { email, username, password } = await request.json();
 
-    if (!email || !username || !password  ){
+    if (!email || !username || !password) {
       return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
     }
 
@@ -24,16 +23,14 @@ export async function POST(request: Request) {
     const newUser = new UserModel({
       email,
       username,
-  password: hashedPassword,
-   
+      password: hashedPassword,
     });
 
     await newUser.save();
 
     return NextResponse.json({ message: 'User created successfully' }, { status: 201 });
   } catch (error) {
-    console.error("Signup error:", error);
+    console.error('Signup error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
-
