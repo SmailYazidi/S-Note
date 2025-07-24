@@ -17,7 +17,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Eye, EyeOff, Film, Tv, Play, BookOpen, Book } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
+import bcrypt from "bcryptjs";
 export default function SignInPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -27,44 +27,52 @@ export default function SignInPage() {
   const router = useRouter();
   const { toast } = useToast();
 
-  const handleSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError("");
 
-    try {
-      const response = await fetch("/api/auth/signin", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: email.trim(),
-          password: password.trim(),
-        }),
-      });
 
-      const data = await response.json();
+const handleSignIn = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setIsLoading(true);
+  setError("");
 
-      if (!response.ok) {
-        throw new Error(data.error || "Sign in failed");
-      }
+  try {
+    const trimmedPassword = password.trim();
 
-      // Save session ID (or JWT/token) to localStorage
-      localStorage.setItem("sessionId", data.sessionId);
+    // Hash the password before sending
+    const hashedPassword = await bcrypt.hash(trimmedPassword, 10);
+    console.log("Hashed Password:", hashedPassword); // 👈 log it
 
-      toast({
-        title: "Welcome back!",
-        description: "You have successfully signed in.",
-      });
+    const response = await fetch("/api/auth/signin", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email: email.trim(),
+        password: hashedPassword, // 👈 send the hash instead
+      }),
+    });
 
-      router.push("/");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An unexpected error occurred.");
-    } finally {
-      setIsLoading(false);
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Sign in failed");
     }
-  };
+
+    localStorage.setItem("sessionId", data.sessionId);
+
+    toast({
+      title: "Welcome back!",
+      description: "You have successfully signed in.",
+    });
+
+    router.push("/");
+  } catch (err) {
+    setError(err instanceof Error ? err.message : "An unexpected error occurred.");
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4 relative">

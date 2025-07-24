@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Eye, EyeOff, Film, Tv, Play, BookOpen, Book } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
+import bcrypt from "bcryptjs";
 export default function SignUpPage() {
   const [email, setEmail] = useState("")
   const [username, setUsername] = useState("")
@@ -23,39 +24,50 @@ export default function SignUpPage() {
   const router = useRouter()
   const { toast } = useToast()
 
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError("")
 
-    try {
-      const response = await fetch("/api/auth/signup", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, username, password }),
-      })
+const handleSignUp = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setIsLoading(true);
+  setError("");
 
-      const data = await response.json()
+  try {
+    const trimmedPassword = password.trim();
 
-      if (!response.ok) {
-        throw new Error(data.error || "Sign up failed")
-      }
+    // Hash the password before sending it
+    const hashedPassword = await bcrypt.hash(trimmedPassword, 10);
+    console.log("Hashed Password (Signup):", hashedPassword); // 👈 log the hashed password
 
-      toast({
-        title: "Account created!",
-        description: "Your account has been successfully created.",
-      })
+    const response = await fetch("/api/auth/signup", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email: email.trim(),
+        username: username.trim(),
+        password: hashedPassword, // 👈 send the hashed password
+      }),
+    });
 
-      // Redirect to sign in page after successful sign up
-      router.push("/auth/signin")
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred. Please try again.")
-    } finally {
-      setIsLoading(false)
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Sign up failed");
     }
+
+    toast({
+      title: "Account created!",
+      description: "Your account has been successfully created.",
+    });
+
+    router.push("/auth/signin");
+  } catch (err) {
+    setError(err instanceof Error ? err.message : "An error occurred. Please try again.");
+  } finally {
+    setIsLoading(false);
   }
+};
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
