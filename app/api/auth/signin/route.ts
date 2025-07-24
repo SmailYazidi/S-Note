@@ -1,3 +1,4 @@
+// ✅ /app/api/auth/signin/route.ts
 import { NextRequest, NextResponse } from "next/server"
 import connectToDatabase from "@/lib/mongodb"
 import { UserModel } from "@/models/User"
@@ -6,26 +7,26 @@ import { createSession } from "@/lib/session-store"
 
 export async function POST(req: NextRequest) {
   try {
-const { email, password } = await req.json()
-console.log("Incoming email:", email)
-console.log("Incoming password:", password)
+    const { email, password } = await req.json()
+    console.log("Incoming email:", email)
+    console.log("Incoming password:", password)
 
-await connectToDatabase()
-const user = await UserModel.findOne({ email })
-console.log("User from DB:", user)
+    await connectToDatabase()
+    const user = await UserModel.findOne({ email })
+    console.log("User from DB:", user)
+
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
-const isPasswordValid = await bcrypt.compare(password, user.password)
-console.log("Password valid:", isPasswordValid)
+    const isPasswordValid = await bcrypt.compare(password, user.password)
+    console.log("Password valid:", isPasswordValid)
+
     if (!isPasswordValid) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
     }
 
-    // Create a session and return session ID
-// Replace: const sessionId = createSession(user._id.toString())
-const sessionId = await createSession(user._id.toString())
+    const sessionId = await createSession(user._id.toString())
 
     return NextResponse.json({
       message: "Signed in successfully",

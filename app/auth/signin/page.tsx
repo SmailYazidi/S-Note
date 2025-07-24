@@ -21,46 +21,48 @@ export default function SignInPage() {
   const router = useRouter()
   const { toast } = useToast()
 
-  const handleSignIn = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError("")
+const handleSignIn = async (e: React.FormEvent) => {
+  e.preventDefault()
+  setIsLoading(true)
+  setError("")
 
-    try {
-      const response = await fetch("/api/auth/signin", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-   body: JSON.stringify({
-  email: email.trim(),
-  password: password.trim(),
-}),
+  try {
+    const response = await fetch("/api/auth/signin", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email: email.trim(),
+        password: password.trim(),
+      }),
+    })
 
-       
-      })
- console.log(email,password)
-      const data = await response.json()
- console.log(data)
-      if (!response.ok) {
-        throw new Error(data.error || "Sign in failed")
-      }
+    console.log("Email & Password Sent:", email, password)
 
-      // احفظ الـ sessionId في localStorage
-      localStorage.setItem("sessionId", data.sessionId)
+    const data = await response.json()
+    console.log("Response from server:", data)
 
-      toast({
-        title: "Welcome back!",
-        description: "You have successfully signed in.",
-      })
-
-      router.push("/")
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred. Please try again.")
-    } finally {
-      setIsLoading(false)
+    if (!response.ok) {
+      throw new Error(data.error || "Sign in failed")
     }
+
+    // Save session ID (or JWT/token) to localStorage
+    localStorage.setItem("sessionId", data.sessionId)
+
+    toast({
+      title: "Welcome back!",
+      description: "You have successfully signed in.",
+    })
+
+    router.push("/")
+  } catch (err) {
+    setError(err instanceof Error ? err.message : "An unexpected error occurred.")
+  } finally {
+    setIsLoading(false)
   }
+}
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
