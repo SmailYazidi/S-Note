@@ -6,16 +6,19 @@ import { createSession } from "@/lib/session-store"
 
 export async function POST(req: NextRequest) {
   try {
-    const { email, password } = await req.json()
-console.log(email,password)
-    await connectToDatabase()
-    const user = await UserModel.findOne({ email })
-console.log(user)
+const { email, password } = await req.json()
+console.log("Incoming email:", email)
+console.log("Incoming password:", password)
+
+await connectToDatabase()
+const user = await UserModel.findOne({ email })
+console.log("User from DB:", user)
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password)
+const isPasswordValid = await bcrypt.compare(password, user.password)
+console.log("Password valid:", isPasswordValid)
     if (!isPasswordValid) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
     }
