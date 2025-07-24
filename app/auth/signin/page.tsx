@@ -33,10 +33,11 @@ export default function SignInPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ email, password }),
+       
       })
-
+ console.log(email,password)
       const data = await response.json()
-
+ console.log(data)
       if (!response.ok) {
         throw new Error(data.error || "Sign in failed")
       }
