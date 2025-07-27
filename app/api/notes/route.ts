@@ -1,77 +1,77 @@
 import { type NextRequest, NextResponse } from "next/server"
-import connectToDatabase from "@/lib/mongodb"
-import { NoteItemModel } from "@/models/NoteItem"
-import { getSession } from "@/lib/session-store"
+import connectDB from "@/lib/mongodb"
+import NoteItem from "@/models/NoteItem"
+import { SessionStore } from "@/lib/session-store"
+import mongoose from "mongoose"
 
-// GET - Fetch all notes for the authenticated user
-export async function GET(req: NextRequest) {
+// GET /api/notes - Get all notes for authenticated user
+export async function GET(request: NextRequest) {
   try {
-    const sessionId = req.headers.get("authorization")?.replace("Bearer ", "")
+    await connectDB()
 
-    if (!sessionId) {
-      return NextResponse.json({ error: "No session provided" }, { status: 401 })
+    const authHeader = request.headers.get("authorization")
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const session = await getSession(sessionId)
+    const sessionId = authHeader.substring(7)
+    const session = await SessionStore.getSession(sessionId)
+
     if (!session) {
-      return NextResponse.json({ error: "Invalid or expired session" }, { status: 401 })
+      return NextResponse.json({ error: "Invalid session" }, { status: 401 })
     }
 
-    await connectToDatabase()
+    const notes = await NoteItem.find({ userId: session.userId }).sort({ createdAt: -1 }).lean()
 
-    const notes = await NoteItemModel.find({ userId: session.userId }).sort({ updatedAt: -1 })
-
-    return NextResponse.json({ notes })
+    return NextResponse.json(notes)
   } catch (error) {
-    console.error("Get notes error:", error)
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
+    console.error("Error fetching notes:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
 
-// POST - Create a new note
-export async function POST(req: NextRequest) {
+// POST /api/notes - Create new note
+export async function POST(request: NextRequest) {
   try {
-    const sessionId = req.headers.get("authorization")?.replace("Bearer ", "")
+    await connectDB()
 
-    if (!sessionId) {
-      return NextResponse.json({ error: "No session provided" }, { status: 401 })
+    const authHeader = request.headers.get("authorization")
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const session = await getSession(sessionId)
+    const sessionId = authHeader.substring(7)
+    const session = await SessionStore.getSession(sessionId)
+
     if (!session) {
-      return NextResponse.json({ error: "Invalid or expired session" }, { status: 401 })
+      return NextResponse.json({ error: "Invalid session" }, { status: 401 })
     }
 
-    const { type, title, content } = await req.json()
+    const { type, title, content } = await request.json()
 
-    if (!type || !title || !content) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+    // Validation
+    if (!type || !["note", "password"].includes(type)) {
+      return NextResponse.json({ error: "Invalid type" }, { status: 400 })
     }
 
-    if (!["note", "password"].includes(type)) {
-      return NextResponse.json({ error: "Invalid note type" }, { status: 400 })
+    if (!title || title.trim().length === 0) {
+      return NextResponse.json({ error: "Title is required" }, { status: 400 })
     }
 
-    await connectToDatabase()
+    if (!content || content.trim().length === 0) {
+      return NextResponse.json({ error: "Content is required" }, { status: 400 })
+    }
 
-    const newNote = new NoteItemModel({
-      userId: session.userId,
+    const note = await NoteItem.create({
+      userId: new mongoose.Types.ObjectId(session.userId),
       type,
-      title,
-      content,
+      title: title.trim(),
+      content: content.trim(),
     })
 
-    await newNote.save()
-
-    return NextResponse.json(
-      {
-        message: "Note created successfully",
-        note: newNote,
-      },
-      { status: 201 },
-    )
+    return NextResponse.json(note, { status: 201 })
   } catch (error) {
-    console.error("Create note error:", error)
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
+    console.error("Error creating note:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

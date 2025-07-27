@@ -1,26 +1,26 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { getSession } from "@/lib/session-store"
+import { SessionStore } from "@/lib/session-store"
 
-export async function GET(req: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    const sessionId = req.headers.get("authorization")?.replace("Bearer ", "")
-
-    if (!sessionId) {
-      return NextResponse.json({ error: "No session provided" }, { status: 401 })
+    const authHeader = request.headers.get("authorization")
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return NextResponse.json({ valid: false }, { status: 401 })
     }
 
-    const session = await getSession(sessionId)
+    const sessionId = authHeader.substring(7)
+    const session = await SessionStore.getSession(sessionId)
+
     if (!session) {
-      return NextResponse.json({ error: "Invalid or expired session" }, { status: 401 })
+      return NextResponse.json({ valid: false }, { status: 401 })
     }
 
     return NextResponse.json({
       valid: true,
       userId: session.userId,
-      email: session.email,
     })
   } catch (error) {
     console.error("Session check error:", error)
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
+    return NextResponse.json({ valid: false }, { status: 500 })
   }
 }

@@ -1,5 +1,3 @@
-// API utility functions for making requests to the backend
-
 export interface NoteItem {
   _id: string
   userId: string
@@ -10,212 +8,168 @@ export interface NoteItem {
   updatedAt: string
 }
 
-export interface ApiResponse<T = any> {
-  message?: string
-  error?: string
-  notes?: T[]
-  note?: T
+export interface CreateNoteData {
+  type: "note" | "password"
+  title: string
+  content: string
 }
 
-// Get session ID from localStorage
-function getSessionId(): string | null {
+export interface UpdateNoteData {
+  type?: "note" | "password"
+  title?: string
+  content?: string
+}
+
+export interface AuthResponse {
+  success: boolean
+  message?: string
+  user?: {
+    id: string
+    email: string
+  }
+}
+
+// Helper function to get session ID from localStorage
+const getSessionId = (): string | null => {
   if (typeof window === "undefined") return null
   return localStorage.getItem("sessionId")
 }
 
-// Create headers with authorization
-function createHeaders(): HeadersInit {
+// Helper function to make authenticated requests
+const makeAuthenticatedRequest = async (url: string, options: RequestInit = {}) => {
   const sessionId = getSessionId()
-  return {
-    "Content-Type": "application/json",
-    ...(sessionId && { Authorization: `Bearer ${sessionId}` }),
+
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(sessionId && { Authorization: `Bearer ${sessionId}` }),
+      ...options.headers,
+    },
+  })
+
+  if (response.status === 401) {
+    // Session expired, redirect to login
+    localStorage.removeItem("sessionId")
+    window.location.href = "/auth/signin"
+    throw new Error("Session expired")
   }
+
+  return response
 }
 
-// Fetch all notes
-export async function fetchNotes(): Promise<NoteItem[]> {
-  try {
-    const response = await fetch("/api/notes", {
-      method: "GET",
-      headers: createHeaders(),
-    })
-
+// Notes API
+export const notesApi = {
+  async getAll(): Promise<NoteItem[]> {
+    const response = await makeAuthenticatedRequest("/api/notes")
     if (!response.ok) {
-      if (response.status === 401) {
-        // Session expired, redirect to login
-        localStorage.removeItem("sessionId")
-        window.location.href = "/auth/signin"
-        return []
-      }
-      throw new Error(`HTTP error! status: ${response.status}`)
+      throw new Error("Failed to fetch notes")
     }
-
-    const data: ApiResponse<NoteItem> = await response.json()
-    return data.notes || []
-  } catch (error) {
-    console.error("Error fetching notes:", error)
-    throw error
-  }
-}
-
-// Create a new note
-export async function createNote(noteData: {
-  type: "note" | "password"
-  title: string
-  content: string
-}): Promise<NoteItem> {
-  try {
-    const response = await fetch("/api/notes", {
-      method: "POST",
-      headers: createHeaders(),
-      body: JSON.stringify(noteData),
-    })
-
-    if (!response.ok) {
-      if (response.status === 401) {
-        localStorage.removeItem("sessionId")
-        window.location.href = "/auth/signin"
-        throw new Error("Session expired")
-      }
-      const errorData = await response.json()
-      throw new Error(errorData.error || `HTTP error! status: ${response.status}`)
-    }
-
-    const data: ApiResponse<NoteItem> = await response.json()
-    if (!data.note) {
-      throw new Error("No note returned from server")
-    }
-    return data.note
-  } catch (error) {
-    console.error("Error creating note:", error)
-    throw error
-  }
-}
-
-// Update a note
-export async function updateNote(
-  id: string,
-  noteData: {
-    type: "note" | "password"
-    title: string
-    content: string
+    return response.json()
   },
-): Promise<NoteItem> {
-  try {
-    const response = await fetch(`/api/notes/${id}`, {
-      method: "PUT",
-      headers: createHeaders(),
-      body: JSON.stringify(noteData),
-    })
 
+  async getById(id: string): Promise<NoteItem> {
+    const response = await makeAuthenticatedRequest(`/api/notes/${id}`)
     if (!response.ok) {
-      if (response.status === 401) {
-        localStorage.removeItem("sessionId")
-        window.location.href = "/auth/signin"
-        throw new Error("Session expired")
-      }
-      const errorData = await response.json()
-      throw new Error(errorData.error || `HTTP error! status: ${response.status}`)
+      throw new Error("Failed to fetch note")
     }
+    return response.json()
+  },
 
-    const data: ApiResponse<NoteItem> = await response.json()
-    if (!data.note) {
-      throw new Error("No note returned from server")
-    }
-    return data.note
-  } catch (error) {
-    console.error("Error updating note:", error)
-    throw error
-  }
-}
-
-// Delete a note
-export async function deleteNote(id: string): Promise<void> {
-  try {
-    const response = await fetch(`/api/notes/${id}`, {
-      method: "DELETE",
-      headers: createHeaders(),
-    })
-
-    if (!response.ok) {
-      if (response.status === 401) {
-        localStorage.removeItem("sessionId")
-        window.location.href = "/auth/signin"
-        throw new Error("Session expired")
-      }
-      const errorData = await response.json()
-      throw new Error(errorData.error || `HTTP error! status: ${response.status}`)
-    }
-  } catch (error) {
-    console.error("Error deleting note:", error)
-    throw error
-  }
-}
-
-// Get a specific note
-export async function fetchNote(id: string): Promise<NoteItem> {
-  try {
-    const response = await fetch(`/api/notes/${id}`, {
-      method: "GET",
-      headers: createHeaders(),
-    })
-
-    if (!response.ok) {
-      if (response.status === 401) {
-        localStorage.removeItem("sessionId")
-        window.location.href = "/auth/signin"
-        throw new Error("Session expired")
-      }
-      const errorData = await response.json()
-      throw new Error(errorData.error || `HTTP error! status: ${response.status}`)
-    }
-
-    const data: ApiResponse<NoteItem> = await response.json()
-    if (!data.note) {
-      throw new Error("No note returned from server")
-    }
-    return data.note
-  } catch (error) {
-    console.error("Error fetching note:", error)
-    throw error
-  }
-}
-
-// Check session validity
-export async function checkSession(): Promise<boolean> {
-  try {
-    const sessionId = getSessionId()
-    if (!sessionId) return false
-
-    const response = await fetch("/api/auth/session", {
-      method: "GET",
-      headers: createHeaders(),
-    })
-
-    return response.ok
-  } catch (error) {
-    console.error("Error checking session:", error)
-    return false
-  }
-}
-
-// Sign out
-export async function signOut(): Promise<void> {
-  try {
-    const response = await fetch("/api/auth/signout", {
+  async create(data: CreateNoteData): Promise<NoteItem> {
+    const response = await makeAuthenticatedRequest("/api/notes", {
       method: "POST",
-      headers: createHeaders(),
+      body: JSON.stringify(data),
+    })
+    if (!response.ok) {
+      throw new Error("Failed to create note")
+    }
+    return response.json()
+  },
+
+  async update(id: string, data: UpdateNoteData): Promise<NoteItem> {
+    const response = await makeAuthenticatedRequest(`/api/notes/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    })
+    if (!response.ok) {
+      throw new Error("Failed to update note")
+    }
+    return response.json()
+  },
+
+  async delete(id: string): Promise<void> {
+    const response = await makeAuthenticatedRequest(`/api/notes/${id}`, {
+      method: "DELETE",
+    })
+    if (!response.ok) {
+      throw new Error("Failed to delete note")
+    }
+  },
+}
+
+// Auth API
+export const authApi = {
+  async signUp(email: string, password: string): Promise<AuthResponse> {
+    const response = await fetch("/api/auth/signup", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email, password }),
     })
 
-    // Always remove session from localStorage, even if request fails
-    localStorage.removeItem("sessionId")
+    const data = await response.json()
 
-    if (!response.ok) {
-      console.warn("Sign out request failed, but local session cleared")
+    if (data.success && data.sessionId) {
+      localStorage.setItem("sessionId", data.sessionId)
     }
-  } catch (error) {
-    console.error("Error signing out:", error)
-    // Still remove local session
-    localStorage.removeItem("sessionId")
-  }
+
+    return data
+  },
+
+  async signIn(email: string, password: string): Promise<AuthResponse> {
+    const response = await fetch("/api/auth/signin", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email, password }),
+    })
+
+    const data = await response.json()
+
+    if (data.success && data.sessionId) {
+      localStorage.setItem("sessionId", data.sessionId)
+    }
+
+    return data
+  },
+
+  async signOut(): Promise<void> {
+    const sessionId = getSessionId()
+    if (sessionId) {
+      await fetch("/api/auth/signout", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${sessionId}`,
+        },
+      })
+      localStorage.removeItem("sessionId")
+    }
+  },
+
+  async checkAuth(): Promise<boolean> {
+    try {
+      const response = await makeAuthenticatedRequest("/api/auth/session")
+      return response.ok
+    } catch {
+      return false
+    }
+  },
+}
+
+// Helper function for checking session (used in components)
+export const checkSession = async (): Promise<boolean> => {
+  return authApi.checkAuth()
 }

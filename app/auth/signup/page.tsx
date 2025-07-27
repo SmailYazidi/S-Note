@@ -1,110 +1,124 @@
 "use client"
 
 import type React from "react"
+
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { useToast } from "@/components/ui/use-toast"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { authApi } from "@/lib/api"
 
-const SignUpPage = () => {
+export default function SignUpPage() {
   const [email, setEmail] = useState("")
-  const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const router = useRouter()
-  const { toast } = useToast()
 
-  const handleSignUp = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
+    setLoading(true)
     setError("")
 
+    if (password !== confirmPassword) {
+      setError("Passwords do not match")
+      setLoading(false)
+      return
+    }
+
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters long")
+      setLoading(false)
+      return
+    }
+
     try {
-      const response = await fetch("/api/auth/signup", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: email.trim(),
-          username: username.trim(),
-          password: password.trim(), // Send plain password, server will handle hashing
-        }),
-      })
+      const result = await authApi.signUp(email, password)
 
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || "Sign up failed")
+      if (result.success) {
+        router.push("/")
+      } else {
+        setError(result.message || "Sign up failed")
       }
-
-      toast({
-        title: "Account created!",
-        description: "Your account has been successfully created.",
-      })
-
-      router.push("/auth/signin")
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred. Please try again.")
+    } catch (error) {
+      console.error("Sign up error:", error)
+      setError("An error occurred during sign up")
     } finally {
-      setIsLoading(false)
+      setLoading(false)
     }
   }
 
   return (
-    <div className="flex justify-center items-center h-screen bg-gray-100">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl text-center">Create an account</CardTitle>
+          <CardTitle className="text-2xl font-bold text-center">Sign Up</CardTitle>
+          <CardDescription className="text-center">Create an account to start managing your notes</CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4">
-          <form onSubmit={handleSignUp}>
-            <div className="grid gap-2">
+        <form onSubmit={handleSubmit}>
+          <CardContent className="space-y-4">
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
-                placeholder="Email"
                 type="email"
+                placeholder="Enter your email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                disabled={loading}
               />
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="username">Username</Label>
-              <Input
-                id="username"
-                placeholder="Username"
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
-              />
-            </div>
-            <div className="grid gap-2">
+            <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
-                placeholder="Password"
                 type="password"
+                placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                disabled={loading}
+                minLength={6}
               />
             </div>
-            {error && <p className="text-red-500">{error}</p>}
-            <Button disabled={isLoading} type="submit" className="w-full mt-4">
-              {isLoading ? "Creating account..." : "Sign up"}
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                placeholder="Confirm your password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                disabled={loading}
+                minLength={6}
+              />
+            </div>
+          </CardContent>
+          <CardFooter className="flex flex-col space-y-4">
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "Creating account..." : "Sign Up"}
             </Button>
-          </form>
-        </CardContent>
+            <p className="text-sm text-center text-gray-600">
+              Already have an account?{" "}
+              <Link href="/auth/signin" className="text-blue-600 hover:underline">
+                Sign in
+              </Link>
+            </p>
+          </CardFooter>
+        </form>
       </Card>
     </div>
   )
 }
-
-export default SignUpPage

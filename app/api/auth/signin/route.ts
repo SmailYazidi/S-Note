@@ -1,45 +1,45 @@
 import { type NextRequest, NextResponse } from "next/server"
-import bcrypt from "bcryptjs"
-import connectToDatabase from "@/lib/mongodb"
-import { UserModel } from "@/models/User"
-import { createSession } from "@/lib/session-store"
+import connectDB from "@/lib/mongodb"
+import User from "@/models/User"
+import { SessionStore } from "@/lib/session-store"
 
-export async function POST(req: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    const { email, password } = await req.json()
+    await connectDB()
 
+    const { email, password } = await request.json()
+
+    // Validation
     if (!email || !password) {
-      return NextResponse.json({ error: "Email and password are required" }, { status: 400 })
+      return NextResponse.json({ success: false, message: "Email and password are required" }, { status: 400 })
     }
 
-    await connectToDatabase()
-
-    // Find user by email
-    const user = await UserModel.findOne({ email })
+    // Find user
+    const user = await User.findOne({ email: email.toLowerCase() })
     if (!user) {
-      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
+      return NextResponse.json({ success: false, message: "Invalid email or password" }, { status: 401 })
     }
 
-    // Compare password with hashed password in database
-    const isPasswordValid = await bcrypt.compare(password, user.password)
+    // Check password
+    const isPasswordValid = await user.comparePassword(password)
     if (!isPasswordValid) {
-      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
+      return NextResponse.json({ success: false, message: "Invalid email or password" }, { status: 401 })
     }
 
     // Create session
-    const sessionId = await createSession(user._id.toString(), user.email)
+    const sessionId = await SessionStore.createSession(user._id.toString())
 
     return NextResponse.json({
-      message: "Sign in successful",
+      success: true,
+      message: "Signed in successfully",
       sessionId,
       user: {
         id: user._id,
         email: user.email,
-        name: user.name,
       },
     })
   } catch (error) {
-    console.error("Sign in error:", error)
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
+    console.error("Signin error:", error)
+    return NextResponse.json({ success: false, message: "Internal server error" }, { status: 500 })
   }
 }
