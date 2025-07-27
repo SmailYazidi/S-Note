@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import bcrypt from "bcryptjs"
 import connectDB from "@/lib/mongodb"
 import User from "@/models/User"
 import { SessionStore } from "@/lib/session-store"
@@ -13,22 +14,22 @@ export async function POST(request: NextRequest) {
 
     await connectDB()
 
-    const user = await User.findOne({ email: email.toLowerCase() })
+    // Find user
+    const user = await User.findOne({ email })
     if (!user) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
     }
 
-    const isValidPassword = await user.comparePassword(password)
+    // Check password
+    const isValidPassword = await bcrypt.compare(password, user.password)
     if (!isValidPassword) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
     }
 
+    // Create session
     const sessionId = await SessionStore.createSession(user._id.toString())
 
-    return NextResponse.json({
-      message: "Signed in successfully",
-      sessionId,
-    })
+    return NextResponse.json({ sessionId })
   } catch (error) {
     console.error("Signin error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

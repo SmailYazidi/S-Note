@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import bcrypt from "bcryptjs"
 import connectDB from "@/lib/mongodb"
 import User from "@/models/User"
 import { SessionStore } from "@/lib/session-store"
@@ -17,25 +18,25 @@ export async function POST(request: NextRequest) {
 
     await connectDB()
 
-    const existingUser = await User.findOne({ email: email.toLowerCase() })
+    // Check if user already exists
+    const existingUser = await User.findOne({ email })
     if (existingUser) {
       return NextResponse.json({ error: "User already exists" }, { status: 400 })
     }
 
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 12)
+
+    // Create user
     const user = await User.create({
-      email: email.toLowerCase(),
-      password,
+      email,
+      password: hashedPassword,
     })
 
+    // Create session
     const sessionId = await SessionStore.createSession(user._id.toString())
 
-    return NextResponse.json(
-      {
-        message: "User created successfully",
-        sessionId,
-      },
-      { status: 201 },
-    )
+    return NextResponse.json({ sessionId })
   } catch (error) {
     console.error("Signup error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 import { authApi } from "@/lib/api"
 
 export default function SignInPage() {
@@ -39,56 +38,54 @@ export default function SignInPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">Sign In</CardTitle>
-          <CardDescription className="text-center">Enter your email and password to access your notes</CardDescription>
+    <div className="min-h-screen flex items-center justify-center bg-black">
+      <Card className="w-full max-w-md bg-gray-900 border-gray-800">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl font-bold text-white">S-Note</CardTitle>
+          <CardDescription className="text-gray-400">Sign in to your account</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+            <div>
+              <Label htmlFor="email" className="text-gray-300">
+                Email
+              </Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="Enter your email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                disabled={isLoading}
+                className="bg-gray-800 border-gray-700 text-white"
+                placeholder="Enter your email"
               />
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+            <div>
+              <Label htmlFor="password" className="text-gray-300">
+                Password
+              </Label>
               <Input
                 id="password"
                 type="password"
-                placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                disabled={isLoading}
+                className="bg-gray-800 border-gray-700 text-white"
+                placeholder="Enter your password"
               />
             </div>
-
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            {error && <p className="text-red-400 text-sm">{error}</p>}
+            <Button type="submit" disabled={isLoading} className="w-full bg-white text-black hover:bg-gray-200">
               {isLoading ? "Signing in..." : "Sign In"}
             </Button>
           </form>
-
-          <div className="mt-4 text-center text-sm">
-            Don't have an account?{" "}
-            <Link href="/auth/signup" className="text-blue-600 hover:underline">
-              Sign up
-            </Link>
+          <div className="mt-4 text-center">
+            <p className="text-gray-400">
+              Don't have an account?{" "}
+              <Link href="/auth/signup" className="text-white hover:underline">
+                Sign up
+              </Link>
+            </p>
           </div>
         </CardContent>
       </Card>

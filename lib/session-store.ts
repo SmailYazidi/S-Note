@@ -1,6 +1,12 @@
-import { randomBytes } from "crypto"
 import connectDB from "./mongodb"
-import Session from "../models/Session"
+import Session from "@/models/Session"
+import { randomBytes } from "crypto"
+
+export interface SessionData {
+  sessionId: string
+  userId: string
+  expiresAt: Date
+}
 
 export class SessionStore {
   static async createSession(userId: string): Promise<string> {
@@ -18,15 +24,23 @@ export class SessionStore {
     return sessionId
   }
 
-  static async getSession(sessionId: string): Promise<{ userId: string } | null> {
+  static async getSession(sessionId: string): Promise<SessionData | null> {
     await connectDB()
 
     const session = await Session.findOne({
       sessionId,
       expiresAt: { $gt: new Date() },
-    })
+    }).lean()
 
-    return session ? { userId: session.userId.toString() } : null
+    if (!session) {
+      return null
+    }
+
+    return {
+      sessionId: session.sessionId,
+      userId: session.userId.toString(),
+      expiresAt: session.expiresAt,
+    }
   }
 
   static async deleteSession(sessionId: string): Promise<void> {
@@ -39,3 +53,7 @@ export class SessionStore {
     await Session.deleteMany({ expiresAt: { $lt: new Date() } })
   }
 }
+
+export const getSession = SessionStore.getSession
+export const createSession = SessionStore.createSession
+export const deleteSession = SessionStore.deleteSession

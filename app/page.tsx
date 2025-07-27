@@ -17,6 +17,7 @@ import {
   EyeOff,
   Menu,
   X,
+  Check,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -36,9 +37,12 @@ export default function HomePage() {
   const [filterType, setFilterType] = useState<"all" | "note" | "password">("all")
   const [isLoading, setIsLoading] = useState(true)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [newNote, setNewNote] = useState({ type: "note" as "note" | "password", title: "", content: "" })
+  const [editNote, setEditNote] = useState({ type: "note" as "note" | "password", title: "", content: "" })
   const [showPassword, setShowPassword] = useState(false)
+  const [copiedStates, setCopiedStates] = useState<{ [key: string]: boolean }>({})
   const router = useRouter()
 
   useEffect(() => {
@@ -54,15 +58,19 @@ export default function HomePage() {
         return
       }
 
-      const notesResult = await notesApi.getAll()
-      if (notesResult.success && notesResult.data) {
-        setNotes(notesResult.data)
-      }
+      await loadNotes()
       setIsLoading(false)
     }
 
     checkAuthAndLoadNotes()
   }, [router])
+
+  const loadNotes = async () => {
+    const notesResult = await notesApi.getAll()
+    if (notesResult.success && notesResult.data) {
+      setNotes(notesResult.data)
+    }
+  }
 
   const handleSignOut = async () => {
     await authApi.signout()
@@ -74,9 +82,20 @@ export default function HomePage() {
 
     const result = await notesApi.create(newNote)
     if (result.success && result.data) {
-      setNotes([result.data, ...notes])
+      await loadNotes()
       setNewNote({ type: "note", title: "", content: "" })
       setIsCreateDialogOpen(false)
+    }
+  }
+
+  const handleEditNote = async () => {
+    if (!selectedNote || !editNote.title.trim() || !editNote.content.trim()) return
+
+    const result = await notesApi.update(selectedNote._id, editNote)
+    if (result.success && result.data) {
+      await loadNotes()
+      setSelectedNote(result.data)
+      setIsEditDialogOpen(false)
     }
   }
 
@@ -85,7 +104,7 @@ export default function HomePage() {
 
     const result = await notesApi.delete(noteId)
     if (result.success) {
-      setNotes(notes.filter((note) => note._id !== noteId))
+      await loadNotes()
       if (selectedNote?._id === noteId) {
         setSelectedNote(null)
         setCurrentView("all-items")
@@ -93,10 +112,31 @@ export default function HomePage() {
     }
   }
 
+  const handleCopy = async (text: string, noteId: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedStates((prev) => ({ ...prev, [noteId]: true }))
+      setTimeout(() => {
+        setCopiedStates((prev) => ({ ...prev, [noteId]: false }))
+      }, 1000)
+    } catch (err) {
+      console.error("Failed to copy text: ", err)
+    }
+  }
+
   const handleNoteClick = (note: NoteItem) => {
     setSelectedNote(note)
     setCurrentView("note-detail")
     setIsSidebarOpen(false)
+  }
+
+  const openEditDialog = (note: NoteItem) => {
+    setEditNote({
+      type: note.type,
+      title: note.title,
+      content: note.content,
+    })
+    setIsEditDialogOpen(true)
   }
 
   const filteredNotes = notes.filter((note) => {
@@ -382,10 +422,24 @@ export default function HomePage() {
                         </span>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white">
-                          <Copy className="h-4 w-4" />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-gray-400 hover:text-white"
+                          onClick={() => handleCopy(selectedNote.content, selectedNote._id)}
+                        >
+                          {copiedStates[selectedNote._id] ? (
+                            <Check className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <Copy className="h-4 w-4" />
+                          )}
                         </Button>
-                        <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-gray-400 hover:text-white"
+                          onClick={() => openEditDialog(selectedNote)}
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button
@@ -524,18 +578,6 @@ export default function HomePage() {
                   </Dialog>
                 </div>
 
-                {/* Mobile Add New Button */}
-                <div className="block sm:hidden">
-                  <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button className="w-full bg-white text-black hover:bg-gray-200">
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add New
-                      </Button>
-                    </DialogTrigger>
-                  </Dialog>
-                </div>
-
                 <div className="space-y-4">
                   {filteredNotes.map((note) => (
                     <Card
@@ -578,6 +620,66 @@ export default function HomePage() {
           </div>
         </div>
       </div>
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="bg-gray-900 border-gray-800">
+          <DialogHeader>
+            <DialogTitle className="text-white">Edit Item</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="edit-type" className="text-gray-300">
+                Type
+              </Label>
+              <Select
+                value={editNote.type}
+                onValueChange={(value: "note" | "password") => setEditNote({ ...editNote, type: value })}
+              >
+                <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-gray-800 border-gray-700">
+                  <SelectItem value="note" className="text-white">
+                    Note
+                  </SelectItem>
+                  <SelectItem value="password" className="text-white">
+                    Password
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="edit-title" className="text-gray-300">
+                Title
+              </Label>
+              <Input
+                id="edit-title"
+                value={editNote.title}
+                onChange={(e) => setEditNote({ ...editNote, title: e.target.value })}
+                placeholder="Enter title..."
+                className="bg-gray-800 border-gray-700 text-white"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-content" className="text-gray-300">
+                Content
+              </Label>
+              <Textarea
+                id="edit-content"
+                value={editNote.content}
+                onChange={(e) => setEditNote({ ...editNote, content: e.target.value })}
+                placeholder="Enter content..."
+                rows={4}
+                className="bg-gray-800 border-gray-700 text-white"
+              />
+            </div>
+            <Button onClick={handleEditNote} className="w-full bg-white text-black hover:bg-gray-200">
+              Update Item
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

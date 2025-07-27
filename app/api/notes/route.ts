@@ -43,8 +43,8 @@ export async function POST(request: NextRequest) {
 
     const { type, title, content } = await request.json()
 
-    if (!title?.trim() || !content?.trim()) {
-      return NextResponse.json({ error: "Title and content are required" }, { status: 400 })
+    if (!type || !title || !content) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
     if (!["note", "password"].includes(type)) {
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
       content: content.trim(),
     })
 
-    return NextResponse.json(note, { status: 201 })
+    return NextResponse.json(note)
   } catch (error) {
     console.error("Create note error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

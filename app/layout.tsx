@@ -9,7 +9,7 @@ const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   title: "S-Note - Secure Notes & Password Manager",
-  description: "A secure note-taking and password management application",
+  description: "A secure notes and password management application",
     generator: 'v0.dev'
 }
 
