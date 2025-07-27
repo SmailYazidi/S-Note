@@ -1,7 +1,6 @@
 import { v4 as uuidv4 } from "uuid"
 import connectDB from "./mongodb"
 import Session from "@/models/Session"
-import mongoose from "mongoose"
 
 export class SessionStore {
   static async createSession(userId: string): Promise<string> {
@@ -12,7 +11,7 @@ export class SessionStore {
 
     await Session.create({
       sessionId,
-      userId: new mongoose.Types.ObjectId(userId),
+      userId,
       expiresAt,
     })
 
@@ -25,11 +24,9 @@ export class SessionStore {
     const session = await Session.findOne({
       sessionId,
       expiresAt: { $gt: new Date() },
-    }).populate("userId")
+    })
 
-    if (!session) {
-      return null
-    }
+    if (!session) return null
 
     return { userId: session.userId.toString() }
   }
@@ -41,11 +38,6 @@ export class SessionStore {
 
   static async deleteUserSessions(userId: string): Promise<void> {
     await connectDB()
-    await Session.deleteMany({ userId: new mongoose.Types.ObjectId(userId) })
-  }
-
-  static async cleanupExpiredSessions(): Promise<void> {
-    await connectDB()
-    await Session.deleteMany({ expiresAt: { $lt: new Date() } })
+    await Session.deleteMany({ userId })
   }
 }

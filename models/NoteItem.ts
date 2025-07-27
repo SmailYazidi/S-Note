@@ -2,7 +2,7 @@ import mongoose, { Schema, type Document } from "mongoose"
 
 export interface INoteItem extends Document {
   _id: string
-  userId: mongoose.Types.ObjectId
+  userId: string
   type: "note" | "password"
   title: string
   content: string
@@ -43,5 +43,6 @@ const NoteItemSchema: Schema = new Schema(
 
 // Create compound index for efficient queries
 NoteItemSchema.index({ userId: 1, createdAt: -1 })
+NoteItemSchema.index({ userId: 1, type: 1 })
 
 export default mongoose.models.NoteItem || mongoose.model<INoteItem>("NoteItem", NoteItemSchema)

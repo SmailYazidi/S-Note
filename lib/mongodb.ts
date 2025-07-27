@@ -15,36 +15,35 @@ declare global {
   var myMongoose: MongooseCache | undefined
 }
 
-const cached: MongooseCache = global.myMongoose || { conn: null, promise: null }
+let cached = global.myMongoose
 
-if (!global.myMongoose) {
-  global.myMongoose = cached
+if (!cached) {
+  cached = global.myMongoose = { conn: null, promise: null }
 }
 
 async function connectDB(): Promise<typeof mongoose> {
-  if (cached.conn) {
-    return cached.conn
+  if (cached!.conn) {
+    return cached!.conn
   }
 
-  if (!cached.promise) {
+  if (!cached!.promise) {
     const opts = {
       bufferCommands: false,
     }
 
-    cached.promise = mongoose.connect(MONGODB_URI!, opts).then((mongoose) => {
-      console.log("Connected to MongoDB")
+    cached!.promise = mongoose.connect(MONGODB_URI!, opts).then((mongoose) => {
       return mongoose
     })
   }
 
   try {
-    cached.conn = await cached.promise
+    cached!.conn = await cached!.promise
   } catch (e) {
-    cached.promise = null
+    cached!.promise = null
     throw e
   }
 
-  return cached.conn
+  return cached!.conn
 }
 
 export default connectDB

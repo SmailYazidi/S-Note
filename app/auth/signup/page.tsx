@@ -8,7 +8,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { authApi } from "@/lib/api"
 
@@ -46,8 +46,7 @@ export default function SignUpPage() {
         setError(result.message || "Sign up failed")
       }
     } catch (error) {
-      console.error("Sign up error:", error)
-      setError("An error occurred during sign up")
+      setError("An error occurred. Please try again.")
     } finally {
       setLoading(false)
     }
@@ -60,13 +59,14 @@ export default function SignUpPage() {
           <CardTitle className="text-2xl font-bold text-center">Sign Up</CardTitle>
           <CardDescription className="text-center">Create an account to start managing your notes</CardDescription>
         </CardHeader>
-        <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
               <Alert variant="destructive">
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
+
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -79,6 +79,7 @@ export default function SignUpPage() {
                 disabled={loading}
               />
             </div>
+
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <Input
@@ -89,9 +90,9 @@ export default function SignUpPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 disabled={loading}
-                minLength={6}
               />
             </div>
+
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Confirm Password</Label>
               <Input
@@ -102,22 +103,23 @@ export default function SignUpPage() {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
                 disabled={loading}
-                minLength={6}
               />
             </div>
-          </CardContent>
-          <CardFooter className="flex flex-col space-y-4">
+
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Creating account..." : "Sign Up"}
             </Button>
-            <p className="text-sm text-center text-gray-600">
+          </form>
+
+          <div className="mt-4 text-center">
+            <p className="text-sm text-gray-600">
               Already have an account?{" "}
-              <Link href="/auth/signin" className="text-blue-600 hover:underline">
+              <Link href="/auth/signin" className="text-blue-600 hover:text-blue-500">
                 Sign in
               </Link>
             </p>
-          </CardFooter>
-        </form>
+          </div>
+        </CardContent>
       </Card>
     </div>
   )

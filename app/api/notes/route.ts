@@ -2,25 +2,22 @@ import { type NextRequest, NextResponse } from "next/server"
 import connectDB from "@/lib/mongodb"
 import NoteItem from "@/models/NoteItem"
 import { SessionStore } from "@/lib/session-store"
-import mongoose from "mongoose"
 
-// GET /api/notes - Get all notes for authenticated user
 export async function GET(request: NextRequest) {
   try {
-    await connectDB()
-
     const authHeader = request.headers.get("authorization")
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    const sessionId = authHeader?.replace("Bearer ", "")
+
+    if (!sessionId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const sessionId = authHeader.substring(7)
     const session = await SessionStore.getSession(sessionId)
-
     if (!session) {
       return NextResponse.json({ error: "Invalid session" }, { status: 401 })
     }
 
+    await connectDB()
     const notes = await NoteItem.find({ userId: session.userId }).sort({ createdAt: -1 }).lean()
 
     return NextResponse.json(notes)
@@ -30,46 +27,39 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/notes - Create new note
 export async function POST(request: NextRequest) {
   try {
-    await connectDB()
-
     const authHeader = request.headers.get("authorization")
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    const sessionId = authHeader?.replace("Bearer ", "")
+
+    if (!sessionId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const sessionId = authHeader.substring(7)
     const session = await SessionStore.getSession(sessionId)
-
     if (!session) {
       return NextResponse.json({ error: "Invalid session" }, { status: 401 })
     }
 
     const { type, title, content } = await request.json()
 
-    // Validation
-    if (!type || !["note", "password"].includes(type)) {
+    if (!type || !title || !content) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+    }
+
+    if (!["note", "password"].includes(type)) {
       return NextResponse.json({ error: "Invalid type" }, { status: 400 })
     }
 
-    if (!title || title.trim().length === 0) {
-      return NextResponse.json({ error: "Title is required" }, { status: 400 })
-    }
-
-    if (!content || content.trim().length === 0) {
-      return NextResponse.json({ error: "Content is required" }, { status: 400 })
-    }
-
+    await connectDB()
     const note = await NoteItem.create({
-      userId: new mongoose.Types.ObjectId(session.userId),
+      userId: session.userId,
       type,
-      title: title.trim(),
-      content: content.trim(),
+      title,
+      content,
     })
 
-    return NextResponse.json(note, { status: 201 })
+    return NextResponse.json(note)
   } catch (error) {
     console.error("Error creating note:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

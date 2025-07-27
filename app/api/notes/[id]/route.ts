@@ -4,19 +4,16 @@ import NoteItem from "@/models/NoteItem"
 import { SessionStore } from "@/lib/session-store"
 import mongoose from "mongoose"
 
-// GET - Fetch a specific note
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    await connectDB()
-
     const authHeader = request.headers.get("authorization")
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    const sessionId = authHeader?.replace("Bearer ", "")
+
+    if (!sessionId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const sessionId = authHeader.substring(7)
     const session = await SessionStore.getSession(sessionId)
-
     if (!session) {
       return NextResponse.json({ error: "Invalid session" }, { status: 401 })
     }
@@ -25,6 +22,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: "Invalid note ID" }, { status: 400 })
     }
 
+    await connectDB()
     const note = await NoteItem.findOne({
       _id: params.id,
       userId: session.userId,
@@ -41,19 +39,16 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-// PUT - Update a note
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    await connectDB()
-
     const authHeader = request.headers.get("authorization")
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    const sessionId = authHeader?.replace("Bearer ", "")
+
+    if (!sessionId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const sessionId = authHeader.substring(7)
     const session = await SessionStore.getSession(sessionId)
-
     if (!session) {
       return NextResponse.json({ error: "Invalid session" }, { status: 401 })
     }
@@ -63,29 +58,18 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     }
 
     const { type, title, content } = await request.json()
-    const updateData: any = {}
 
+    const updateData: any = {}
     if (type !== undefined) {
       if (!["note", "password"].includes(type)) {
         return NextResponse.json({ error: "Invalid type" }, { status: 400 })
       }
       updateData.type = type
     }
+    if (title !== undefined) updateData.title = title
+    if (content !== undefined) updateData.content = content
 
-    if (title !== undefined) {
-      if (title.trim().length === 0) {
-        return NextResponse.json({ error: "Title cannot be empty" }, { status: 400 })
-      }
-      updateData.title = title.trim()
-    }
-
-    if (content !== undefined) {
-      if (content.trim().length === 0) {
-        return NextResponse.json({ error: "Content cannot be empty" }, { status: 400 })
-      }
-      updateData.content = content.trim()
-    }
-
+    await connectDB()
     const note = await NoteItem.findOneAndUpdate({ _id: params.id, userId: session.userId }, updateData, {
       new: true,
       runValidators: true,
@@ -102,19 +86,16 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-// DELETE - Delete a note
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    await connectDB()
-
     const authHeader = request.headers.get("authorization")
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    const sessionId = authHeader?.replace("Bearer ", "")
+
+    if (!sessionId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const sessionId = authHeader.substring(7)
     const session = await SessionStore.getSession(sessionId)
-
     if (!session) {
       return NextResponse.json({ error: "Invalid session" }, { status: 401 })
     }
@@ -123,6 +104,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       return NextResponse.json({ error: "Invalid note ID" }, { status: 400 })
     }
 
+    await connectDB()
     const note = await NoteItem.findOneAndDelete({
       _id: params.id,
       userId: session.userId,
@@ -132,7 +114,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       return NextResponse.json({ error: "Note not found" }, { status: 404 })
     }
 
-    return NextResponse.json({ message: "Note deleted successfully" })
+    return NextResponse.json({ success: true })
   } catch (error) {
     console.error("Error deleting note:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

@@ -23,85 +23,71 @@ export interface UpdateNoteData {
 export interface AuthResponse {
   success: boolean
   message?: string
-  user?: {
-    id: string
-    email: string
-  }
-}
-
-// Helper function to get session ID from localStorage
-const getSessionId = (): string | null => {
-  if (typeof window === "undefined") return null
-  return localStorage.getItem("sessionId")
-}
-
-// Helper function to make authenticated requests
-const makeAuthenticatedRequest = async (url: string, options: RequestInit = {}) => {
-  const sessionId = getSessionId()
-
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(sessionId && { Authorization: `Bearer ${sessionId}` }),
-      ...options.headers,
-    },
-  })
-
-  if (response.status === 401) {
-    // Session expired, redirect to login
-    localStorage.removeItem("sessionId")
-    window.location.href = "/auth/signin"
-    throw new Error("Session expired")
-  }
-
-  return response
+  sessionId?: string
 }
 
 // Notes API
 export const notesApi = {
   async getAll(): Promise<NoteItem[]> {
-    const response = await makeAuthenticatedRequest("/api/notes")
+    const sessionId = localStorage.getItem("sessionId")
+    const response = await fetch("/api/notes", {
+      headers: {
+        Authorization: `Bearer ${sessionId}`,
+      },
+    })
+
     if (!response.ok) {
       throw new Error("Failed to fetch notes")
     }
-    return response.json()
-  },
 
-  async getById(id: string): Promise<NoteItem> {
-    const response = await makeAuthenticatedRequest(`/api/notes/${id}`)
-    if (!response.ok) {
-      throw new Error("Failed to fetch note")
-    }
     return response.json()
   },
 
   async create(data: CreateNoteData): Promise<NoteItem> {
-    const response = await makeAuthenticatedRequest("/api/notes", {
+    const sessionId = localStorage.getItem("sessionId")
+    const response = await fetch("/api/notes", {
       method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${sessionId}`,
+      },
       body: JSON.stringify(data),
     })
+
     if (!response.ok) {
       throw new Error("Failed to create note")
     }
+
     return response.json()
   },
 
   async update(id: string, data: UpdateNoteData): Promise<NoteItem> {
-    const response = await makeAuthenticatedRequest(`/api/notes/${id}`, {
+    const sessionId = localStorage.getItem("sessionId")
+    const response = await fetch(`/api/notes/${id}`, {
       method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${sessionId}`,
+      },
       body: JSON.stringify(data),
     })
+
     if (!response.ok) {
       throw new Error("Failed to update note")
     }
+
     return response.json()
   },
 
   async delete(id: string): Promise<void> {
-    const response = await makeAuthenticatedRequest(`/api/notes/${id}`, {
+    const sessionId = localStorage.getItem("sessionId")
+    const response = await fetch(`/api/notes/${id}`, {
       method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${sessionId}`,
+      },
     })
+
     if (!response.ok) {
       throw new Error("Failed to delete note")
     }
@@ -147,7 +133,7 @@ export const authApi = {
   },
 
   async signOut(): Promise<void> {
-    const sessionId = getSessionId()
+    const sessionId = localStorage.getItem("sessionId")
     if (sessionId) {
       await fetch("/api/auth/signout", {
         method: "POST",
@@ -160,16 +146,19 @@ export const authApi = {
   },
 
   async checkAuth(): Promise<boolean> {
+    const sessionId = localStorage.getItem("sessionId")
+    if (!sessionId) return false
+
     try {
-      const response = await makeAuthenticatedRequest("/api/auth/session")
+      const response = await fetch("/api/auth/session", {
+        headers: {
+          Authorization: `Bearer ${sessionId}`,
+        },
+      })
+
       return response.ok
     } catch {
       return false
     }
   },
-}
-
-// Helper function for checking session (used in components)
-export const checkSession = async (): Promise<boolean> => {
-  return authApi.checkAuth()
 }

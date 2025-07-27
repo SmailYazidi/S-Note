@@ -5,11 +5,8 @@ import { SessionStore } from "@/lib/session-store"
 
 export async function POST(request: NextRequest) {
   try {
-    await connectDB()
-
     const { email, password } = await request.json()
 
-    // Validation
     if (!email || !password) {
       return NextResponse.json({ success: false, message: "Email and password are required" }, { status: 400 })
     }
@@ -21,33 +18,28 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    await connectDB()
+
     // Check if user already exists
     const existingUser = await User.findOne({ email: email.toLowerCase() })
     if (existingUser) {
       return NextResponse.json({ success: false, message: "User already exists with this email" }, { status: 400 })
     }
 
-    // Create new user (password will be hashed by the pre-save hook)
+    // Create new user
     const user = await User.create({
       email: email.toLowerCase(),
-      password,
+      password, // Will be hashed by the pre-save middleware
     })
 
     // Create session
     const sessionId = await SessionStore.createSession(user._id.toString())
 
-    return NextResponse.json(
-      {
-        success: true,
-        message: "User created successfully",
-        sessionId,
-        user: {
-          id: user._id,
-          email: user.email,
-        },
-      },
-      { status: 201 },
-    )
+    return NextResponse.json({
+      success: true,
+      message: "User created successfully",
+      sessionId,
+    })
   } catch (error) {
     console.error("Signup error:", error)
     return NextResponse.json({ success: false, message: "Internal server error" }, { status: 500 })

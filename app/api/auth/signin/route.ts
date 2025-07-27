@@ -5,16 +5,15 @@ import { SessionStore } from "@/lib/session-store"
 
 export async function POST(request: NextRequest) {
   try {
-    await connectDB()
-
     const { email, password } = await request.json()
 
-    // Validation
     if (!email || !password) {
       return NextResponse.json({ success: false, message: "Email and password are required" }, { status: 400 })
     }
 
-    // Find user
+    await connectDB()
+
+    // Find user by email
     const user = await User.findOne({ email: email.toLowerCase() })
     if (!user) {
       return NextResponse.json({ success: false, message: "Invalid email or password" }, { status: 401 })
@@ -33,10 +32,6 @@ export async function POST(request: NextRequest) {
       success: true,
       message: "Signed in successfully",
       sessionId,
-      user: {
-        id: user._id,
-        email: user.email,
-      },
     })
   } catch (error) {
     console.error("Signin error:", error)
