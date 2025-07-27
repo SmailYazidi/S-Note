@@ -1,67 +1,65 @@
 import { type NextRequest, NextResponse } from "next/server"
-import connectDB from "@/lib/mongodb"
-import NoteItem from "@/models/NoteItem"
-import { SessionStore } from "@/lib/session-store"
+import connectToDatabase from "@/lib/mongodb"
+import { NoteItemModel } from "@/models/NoteItem"
+import { getSession } from "@/lib/session-store"
 
-export async function GET(request: NextRequest) {
+export async function GET(req: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization")
-    const sessionId = authHeader?.replace("Bearer ", "")
+    const sessionId = req.headers.get("authorization")?.replace("Bearer ", "")
 
     if (!sessionId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json({ error: "No session provided" }, { status: 401 })
     }
 
-    const session = await SessionStore.getSession(sessionId)
+    const session = await getSession(sessionId)
     if (!session) {
-      return NextResponse.json({ error: "Invalid session" }, { status: 401 })
+      return NextResponse.json({ error: "Invalid or expired session" }, { status: 401 })
     }
 
-    await connectDB()
-    const notes = await NoteItem.find({ userId: session.userId }).sort({ createdAt: -1 }).lean()
+    await connectToDatabase()
+
+    const notes = await NoteItemModel.find({ userId: session.userId }).sort({ createdAt: -1 }).lean()
 
     return NextResponse.json(notes)
   } catch (error) {
-    console.error("Error fetching notes:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    console.error("Get notes error:", error)
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization")
-    const sessionId = authHeader?.replace("Bearer ", "")
+    const sessionId = req.headers.get("authorization")?.replace("Bearer ", "")
 
     if (!sessionId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json({ error: "No session provided" }, { status: 401 })
     }
 
-    const session = await SessionStore.getSession(sessionId)
+    const session = await getSession(sessionId)
     if (!session) {
-      return NextResponse.json({ error: "Invalid session" }, { status: 401 })
+      return NextResponse.json({ error: "Invalid or expired session" }, { status: 401 })
     }
 
-    const { type, title, content } = await request.json()
+    const { title, content, type } = await req.json()
 
-    if (!type || !title || !content) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+    if (!title || !content) {
+      return NextResponse.json({ error: "Title and content are required" }, { status: 400 })
     }
 
-    if (!["note", "password"].includes(type)) {
-      return NextResponse.json({ error: "Invalid type" }, { status: 400 })
-    }
+    await connectToDatabase()
 
-    await connectDB()
-    const note = await NoteItem.create({
+    const note = new NoteItemModel({
       userId: session.userId,
-      type,
       title,
       content,
+      type: type || "note",
     })
 
-    return NextResponse.json(note)
+    await note.save()
+
+    return NextResponse.json(note, { status: 201 })
   } catch (error) {
-    console.error("Error creating note:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    console.error("Create note error:", error)
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }
 }

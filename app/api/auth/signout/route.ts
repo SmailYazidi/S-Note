@@ -1,18 +1,17 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { SessionStore } from "@/lib/session-store"
+import { destroySession } from "@/lib/session-store"
 
-export async function POST(request: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization")
-    const sessionId = authHeader?.replace("Bearer ", "")
+    const sessionId = req.headers.get("authorization")?.replace("Bearer ", "")
 
     if (sessionId) {
-      await SessionStore.deleteSession(sessionId)
+      await destroySession(sessionId)
     }
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ message: "Signed out successfully" })
   } catch (error) {
     console.error("Signout error:", error)
-    return NextResponse.json({ success: true }) // Still return success even if cleanup fails
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }
 }

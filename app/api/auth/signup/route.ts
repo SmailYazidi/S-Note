@@ -1,47 +1,44 @@
-import { type NextRequest, NextResponse } from "next/server"
-import connectDB from "@/lib/mongodb"
-import User from "@/models/User"
-import { SessionStore } from "@/lib/session-store"
+import { NextResponse } from "next/server"
+import connectToDatabase from "@/lib/mongodb"
+import { UserModel } from "@/models/User"
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
     const { email, password } = await request.json()
 
     if (!email || !password) {
-      return NextResponse.json({ success: false, message: "Email and password are required" }, { status: 400 })
+      return NextResponse.json({ error: "Missing fields" }, { status: 400 })
     }
 
-    if (password.length < 6) {
-      return NextResponse.json(
-        { success: false, message: "Password must be at least 6 characters long" },
-        { status: 400 },
-      )
-    }
-
-    await connectDB()
+    await connectToDatabase()
 
     // Check if user already exists
-    const existingUser = await User.findOne({ email: email.toLowerCase() })
+    const existingUser = await UserModel.findOne({ email })
+
     if (existingUser) {
-      return NextResponse.json({ success: false, message: "User already exists with this email" }, { status: 400 })
+      return NextResponse.json({ error: "Email already exists" }, { status: 409 })
     }
 
-    // Create new user
-    const user = await User.create({
-      email: email.toLowerCase(),
-      password, // Will be hashed by the pre-save middleware
+    // Create new user (password will be hashed by the pre-save hook)
+    const newUser = new UserModel({
+      email,
+      password, // This will be hashed automatically by the User model
     })
 
-    // Create session
-    const sessionId = await SessionStore.createSession(user._id.toString())
+    await newUser.save()
 
-    return NextResponse.json({
-      success: true,
-      message: "User created successfully",
-      sessionId,
-    })
+    return NextResponse.json(
+      {
+        message: "User created successfully",
+        user: {
+          id: newUser._id,
+          email: newUser.email,
+        },
+      },
+      { status: 201 },
+    )
   } catch (error) {
     console.error("Signup error:", error)
-    return NextResponse.json({ success: false, message: "Internal server error" }, { status: 500 })
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }
 }

@@ -2,10 +2,10 @@ import mongoose, { Schema, type Document } from "mongoose"
 
 export interface INoteItem extends Document {
   _id: string
-  userId: string
-  type: "note" | "password"
+  userId: mongoose.Types.ObjectId
   title: string
   content: string
+  type: "note" | "password"
   createdAt: Date
   updatedAt: Date
 }
@@ -18,12 +18,6 @@ const NoteItemSchema: Schema = new Schema(
       required: true,
       index: true,
     },
-    type: {
-      type: String,
-      enum: ["note", "password"],
-      required: true,
-      default: "note",
-    },
     title: {
       type: String,
       required: true,
@@ -35,14 +29,20 @@ const NoteItemSchema: Schema = new Schema(
       required: true,
       maxlength: 10000,
     },
+    type: {
+      type: String,
+      enum: ["note", "password"],
+      default: "note",
+      required: true,
+    },
   },
   {
     timestamps: true,
   },
 )
 
-// Create compound index for efficient queries
+// Index for efficient queries
 NoteItemSchema.index({ userId: 1, createdAt: -1 })
 NoteItemSchema.index({ userId: 1, type: 1 })
 
-export default mongoose.models.NoteItem || mongoose.model<INoteItem>("NoteItem", NoteItemSchema)
+export const NoteItemModel = mongoose.models.NoteItem || mongoose.model<INoteItem>("NoteItem", NoteItemSchema)

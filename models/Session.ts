@@ -3,9 +3,10 @@ import mongoose, { Schema, type Document } from "mongoose"
 export interface ISession extends Document {
   _id: string
   sessionId: string
-  userId: string
-  createdAt: Date
+  userId: mongoose.Types.ObjectId
   expiresAt: Date
+  createdAt: Date
+  updatedAt: Date
 }
 
 const SessionSchema: Schema = new Schema(
@@ -24,8 +25,8 @@ const SessionSchema: Schema = new Schema(
     },
     expiresAt: {
       type: Date,
-      default: Date.now,
-      expires: 7 * 24 * 60 * 60, // 7 days in seconds
+      required: true,
+      index: { expireAfterSeconds: 0 }, // TTL index for automatic cleanup
     },
   },
   {
@@ -33,7 +34,4 @@ const SessionSchema: Schema = new Schema(
   },
 )
 
-// TTL index for automatic cleanup
-SessionSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 })
-
-export default mongoose.models.Session || mongoose.model<ISession>("Session", SessionSchema)
+export const SessionModel = mongoose.models.Session || mongoose.model<ISession>("Session", SessionSchema)
