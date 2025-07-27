@@ -1,12 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { destroySession } from "@/lib/session-store"
+import { SessionStore } from "@/lib/session-store"
 
 export async function POST(request: NextRequest) {
   try {
-    const sessionId = request.headers.get("authorization")?.replace("Bearer ", "")
-
-    if (sessionId) {
-      await destroySession(sessionId)
+    const authHeader = request.headers.get("authorization")
+    if (authHeader?.startsWith("Bearer ")) {
+      const sessionId = authHeader.substring(7)
+      await SessionStore.deleteSession(sessionId)
     }
 
     return NextResponse.json({ message: "Signed out successfully" })

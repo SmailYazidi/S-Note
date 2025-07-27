@@ -1,19 +1,10 @@
-import mongoose, { Schema, type Document } from "mongoose"
+import mongoose from "mongoose"
 
-export interface INoteItem extends Document {
-  _id: string
-  userId: string
-  type: "note" | "password"
-  title: string
-  content: string
-  createdAt: Date
-  updatedAt: Date
-}
-
-const NoteItemSchema: Schema = new Schema(
+const noteItemSchema = new mongoose.Schema(
   {
     userId: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
       required: true,
       index: true,
     },
@@ -21,6 +12,7 @@ const NoteItemSchema: Schema = new Schema(
       type: String,
       enum: ["note", "password"],
       required: true,
+      default: "note",
     },
     title: {
       type: String,
@@ -40,6 +32,7 @@ const NoteItemSchema: Schema = new Schema(
 )
 
 // Create compound index for efficient queries
-NoteItemSchema.index({ userId: 1, updatedAt: -1 })
+noteItemSchema.index({ userId: 1, type: 1 })
+noteItemSchema.index({ userId: 1, updatedAt: -1 })
 
-export default mongoose.models.NoteItem || mongoose.model<INoteItem>("NoteItem", NoteItemSchema)
+export default mongoose.models.NoteItem || mongoose.model("NoteItem", noteItemSchema)

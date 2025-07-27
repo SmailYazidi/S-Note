@@ -1,15 +1,15 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { getSession } from "@/lib/session-store"
+import { SessionStore } from "@/lib/session-store"
 
 export async function GET(request: NextRequest) {
   try {
-    const sessionId = request.headers.get("authorization")?.replace("Bearer ", "")
-
-    if (!sessionId) {
+    const authHeader = request.headers.get("authorization")
+    if (!authHeader?.startsWith("Bearer ")) {
       return NextResponse.json({ valid: false }, { status: 401 })
     }
 
-    const session = await getSession(sessionId)
+    const sessionId = authHeader.substring(7)
+    const session = await SessionStore.getSession(sessionId)
 
     return NextResponse.json({ valid: !!session })
   } catch (error) {

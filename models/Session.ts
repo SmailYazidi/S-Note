@@ -1,14 +1,6 @@
-import mongoose, { Schema, type Document } from "mongoose"
+import mongoose from "mongoose"
 
-export interface ISession extends Document {
-  _id: string
-  sessionId: string
-  userId: string
-  expiresAt: Date
-  createdAt: Date
-}
-
-const SessionSchema: Schema = new Schema(
+const sessionSchema = new mongoose.Schema(
   {
     sessionId: {
       type: String,
@@ -17,14 +9,15 @@ const SessionSchema: Schema = new Schema(
       index: true,
     },
     userId: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
       required: true,
       index: true,
     },
     expiresAt: {
       type: Date,
       required: true,
-      index: { expireAfterSeconds: 0 }, // TTL index for automatic cleanup
+      index: { expireAfterSeconds: 0 },
     },
   },
   {
@@ -32,4 +25,4 @@ const SessionSchema: Schema = new Schema(
   },
 )
 
-export default mongoose.models.Session || mongoose.model<ISession>("Session", SessionSchema)
+export default mongoose.models.Session || mongoose.model("Session", sessionSchema)

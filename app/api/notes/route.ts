@@ -1,23 +1,23 @@
 import { type NextRequest, NextResponse } from "next/server"
 import connectDB from "@/lib/mongodb"
 import NoteItem from "@/models/NoteItem"
-import { getSession } from "@/lib/session-store"
+import { SessionStore } from "@/lib/session-store"
 
 export async function GET(request: NextRequest) {
   try {
-    const sessionId = request.headers.get("authorization")?.replace("Bearer ", "")
-
-    if (!sessionId) {
+    const authHeader = request.headers.get("authorization")
+    if (!authHeader?.startsWith("Bearer ")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const session = await getSession(sessionId)
+    const sessionId = authHeader.substring(7)
+    const session = await SessionStore.getSession(sessionId)
+
     if (!session) {
       return NextResponse.json({ error: "Invalid session" }, { status: 401 })
     }
 
     await connectDB()
-
     const notes = await NoteItem.find({ userId: session.userId }).sort({ updatedAt: -1 }).lean()
 
     return NextResponse.json(notes)
@@ -29,21 +29,22 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const sessionId = request.headers.get("authorization")?.replace("Bearer ", "")
-
-    if (!sessionId) {
+    const authHeader = request.headers.get("authorization")
+    if (!authHeader?.startsWith("Bearer ")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const session = await getSession(sessionId)
+    const sessionId = authHeader.substring(7)
+    const session = await SessionStore.getSession(sessionId)
+
     if (!session) {
       return NextResponse.json({ error: "Invalid session" }, { status: 401 })
     }
 
     const { type, title, content } = await request.json()
 
-    if (!type || !title || !content) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+    if (!title?.trim() || !content?.trim()) {
+      return NextResponse.json({ error: "Title and content are required" }, { status: 400 })
     }
 
     if (!["note", "password"].includes(type)) {
@@ -51,7 +52,6 @@ export async function POST(request: NextRequest) {
     }
 
     await connectDB()
-
     const note = await NoteItem.create({
       userId: session.userId,
       type,

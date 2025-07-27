@@ -26,7 +26,6 @@ export default function SignInPage() {
 
     try {
       const result = await authApi.signin(email, password)
-
       if (result.success) {
         router.push("/")
       } else {
@@ -40,7 +39,7 @@ export default function SignInPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold text-center">Sign In</CardTitle>
@@ -87,7 +86,7 @@ export default function SignInPage() {
 
           <div className="mt-4 text-center text-sm">
             Don't have an account?{" "}
-            <Link href="/auth/signup" className="text-blue-600 hover:text-blue-500">
+            <Link href="/auth/signup" className="text-blue-600 hover:underline">
               Sign up
             </Link>
           </div>

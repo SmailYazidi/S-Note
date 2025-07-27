@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import connectDB from "@/lib/mongodb"
 import User from "@/models/User"
-import { createSession } from "@/lib/session-store"
+import { SessionStore } from "@/lib/session-store"
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,22 +13,22 @@ export async function POST(request: NextRequest) {
 
     await connectDB()
 
-    // Find user
     const user = await User.findOne({ email: email.toLowerCase() })
     if (!user) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
     }
 
-    // Check password
     const isValidPassword = await user.comparePassword(password)
     if (!isValidPassword) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
     }
 
-    // Create session
-    const sessionId = await createSession(user._id.toString())
+    const sessionId = await SessionStore.createSession(user._id.toString())
 
-    return NextResponse.json({ sessionId })
+    return NextResponse.json({
+      message: "Signed in successfully",
+      sessionId,
+    })
   } catch (error) {
     console.error("Signin error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
