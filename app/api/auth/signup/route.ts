@@ -18,22 +18,17 @@ export async function POST(request: NextRequest) {
 
     await connectDB()
 
-    // Check if user already exists
     const existingUser = await User.findOne({ email })
     if (existingUser) {
       return NextResponse.json({ error: "User already exists" }, { status: 400 })
     }
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(password, 12)
-
-    // Create user
     const user = await User.create({
       email,
       password: hashedPassword,
     })
 
-    // Create session
     const sessionId = await SessionStore.createSession(user._id.toString())
 
     return NextResponse.json({ sessionId })

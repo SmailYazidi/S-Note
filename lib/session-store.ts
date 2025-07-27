@@ -53,7 +53,3 @@ export class SessionStore {
     await Session.deleteMany({ expiresAt: { $lt: new Date() } })
   }
 }
-
-export const getSession = SessionStore.getSession
-export const createSession = SessionStore.createSession
-export const deleteSession = SessionStore.deleteSession

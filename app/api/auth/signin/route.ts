@@ -14,19 +14,16 @@ export async function POST(request: NextRequest) {
 
     await connectDB()
 
-    // Find user
     const user = await User.findOne({ email })
     if (!user) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
     }
 
-    // Check password
-    const isValidPassword = await bcrypt.compare(password, user.password)
-    if (!isValidPassword) {
+    const isPasswordValid = await bcrypt.compare(password, user.password)
+    if (!isPasswordValid) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
     }
 
-    // Create session
     const sessionId = await SessionStore.createSession(user._id.toString())
 
     return NextResponse.json({ sessionId })
