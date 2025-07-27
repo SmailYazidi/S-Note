@@ -373,16 +373,11 @@ export default function HomePage() {
               </div>
 
               <div className="flex items-center space-x-4">
-                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-                  <Search className="h-4 w-4" />
-                </Button>
+            
 
                 <ThemeToggle />
 
-                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-                  <Share className="h-4 w-4" />
-                </Button>
-
+        
                 <Button variant="ghost" onClick={handleSignOut} className="text-muted-foreground hover:text-foreground">
                   Sign Out
                 </Button>
