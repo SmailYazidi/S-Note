@@ -1,36 +1,54 @@
-import { NextResponse } from 'next/server';
-import connectToDatabase from '@/lib/mongodb';
-import { UserModel } from '@/models/User';
-import bcrypt from 'bcryptjs';
+import { type NextRequest, NextResponse } from "next/server"
+import connectToDatabase from "@/lib/mongodb"
+import { UserModel } from "@/models/User"
+import { createSession } from "@/lib/session-store"
 
-export async function POST(request: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const { email, username, password } = await request.json();
+    const { name, email, password } = await req.json()
 
-    if (!email || !username || !password) {
-      return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+    if (!name || !email || !password) {
+      return NextResponse.json({ error: "Name, email, and password are required" }, { status: 400 })
     }
 
-    await connectToDatabase();
+    if (password.length < 6) {
+      return NextResponse.json({ error: "Password must be at least 6 characters long" }, { status: 400 })
+    }
 
-    const existingUser = await UserModel.findOne({ email });
+    await connectToDatabase()
+
+    // Check if user already exists
+    const existingUser = await UserModel.findOne({ email })
     if (existingUser) {
-      return NextResponse.json({ error: 'User already exists' }, { status: 409 });
+      return NextResponse.json({ error: "User with this email already exists" }, { status: 409 })
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-
+    // Create new user (password will be hashed by the pre-save hook in the User model)
     const newUser = new UserModel({
+      name,
       email,
-      username,
-      password: hashedPassword,
-    });
+      password, // This will be hashed automatically by the User model
+    })
 
-    await newUser.save();
+    await newUser.save()
 
-    return NextResponse.json({ message: 'User created successfully' }, { status: 201 });
+    // Create session for the new user
+    const sessionId = await createSession(newUser._id.toString(), newUser.email)
+
+    return NextResponse.json(
+      {
+        message: "User created successfully",
+        sessionId,
+        user: {
+          id: newUser._id,
+          email: newUser.email,
+          name: newUser.name,
+        },
+      },
+      { status: 201 },
+    )
   } catch (error) {
-    console.error('Signup error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    console.error("Sign up error:", error)
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }
 }

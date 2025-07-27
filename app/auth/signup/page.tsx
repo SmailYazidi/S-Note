@@ -3,190 +3,108 @@
 import type React from "react"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import Link from "next/link"
+import { useToast } from "@/components/ui/use-toast"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Eye, EyeOff, Film, Tv, Play, BookOpen, Book } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
-import bcrypt from "bcryptjs";
-export default function SignUpPage() {
+const SignUpPage = () => {
   const [email, setEmail] = useState("")
   const [username, setUsername] = useState("")
-
   const [password, setPassword] = useState("")
-  const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const router = useRouter()
   const { toast } = useToast()
 
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+    setError("")
 
-const handleSignUp = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setIsLoading(true);
-  setError("");
+    try {
+      const response = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: email.trim(),
+          username: username.trim(),
+          password: password.trim(), // Send plain password, server will handle hashing
+        }),
+      })
 
-  try {
-    const trimmedPassword = password.trim();
+      const data = await response.json()
 
-    // Hash the password before sending it
-    const hashedPassword = await bcrypt.hash(trimmedPassword, 10);
-    console.log("Hashed Password (Signup):", hashedPassword); // 👈 log the hashed password
+      if (!response.ok) {
+        throw new Error(data.error || "Sign up failed")
+      }
 
-    const response = await fetch("/api/auth/signup", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        email: email.trim(),
-        username: username.trim(),
-        password: hashedPassword, // 👈 send the hashed password
-      }),
-    });
+      toast({
+        title: "Account created!",
+        description: "Your account has been successfully created.",
+      })
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.error || "Sign up failed");
+      router.push("/auth/signin")
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred. Please try again.")
+    } finally {
+      setIsLoading(false)
     }
-
-    toast({
-      title: "Account created!",
-      description: "Your account has been successfully created.",
-    });
-
-    router.push("/auth/signin");
-  } catch (err) {
-    setError(err instanceof Error ? err.message : "An error occurred. Please try again.");
-  } finally {
-    setIsLoading(false);
   }
-};
-
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
-      {/* Background Icons */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-20 text-white/5">
-          <Film className="h-32 w-32" />
-        </div>
-        <div className="absolute top-40 right-32 text-white/5">
-          <Tv className="h-24 w-24" />
-        </div>
-        <div className="absolute bottom-32 left-32 text-white/5">
-          <Play className="h-28 w-28" />
-        </div>
-        <div className="absolute bottom-20 right-20 text-white/5">
-          <BookOpen className="h-20 w-20" />
-        </div>
-        <div className="absolute top-1/2 left-1/4 text-white/5">
-          <Book className="h-16 w-16" />
-        </div>
-      </div>
-
-      <Card className="w-full max-w-md bg-white/10 backdrop-blur-md border-white/20">
-        <CardHeader className="text-center">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-              <Play className="h-6 w-6 text-white" />
-            </div>
-            <h1 className="text-2xl font-bold text-white">AniMov</h1>
-          </div>
-          <CardTitle className="text-2xl text-white">Create an Account</CardTitle>
-          <CardDescription className="text-gray-300">Join our community to track your favorites</CardDescription>
+    <div className="flex justify-center items-center h-screen bg-gray-100">
+      <Card className="w-full max-w-md">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl text-center">Create an account</CardTitle>
         </CardHeader>
-
-        <form onSubmit={handleSignUp}>
-          <CardContent className="space-y-4">
-            {error && (
-              <Alert className="bg-red-500/10 border-red-500/20 text-red-300">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-white">
-                Email
-              </Label>
+        <CardContent className="grid gap-4">
+          <form onSubmit={handleSignUp}>
+            <div className="grid gap-2">
+              <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
+                placeholder="Email"
                 type="email"
-                placeholder="Enter your email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
               />
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="username" className="text-white">
-                Username
-              </Label>
+            <div className="grid gap-2">
+              <Label htmlFor="username">Username</Label>
               <Input
                 id="username"
+                placeholder="Username"
                 type="text"
-                placeholder="Choose a username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
-                className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
               />
             </div>
-
-
-
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-white">
-                Password
-              </Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Create a password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 pr-10"
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-0 top-0 h-full px-3 text-gray-400 hover:text-white"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
-              </div>
+            <div className="grid gap-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                placeholder="Password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
             </div>
-          </CardContent>
-
-          <CardFooter className="flex flex-col space-y-4">
-            <Button
-              type="submit"
-              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
-              disabled={isLoading}
-            >
-              {isLoading ? "Creating Account..." : "Sign Up"}
+            {error && <p className="text-red-500">{error}</p>}
+            <Button disabled={isLoading} type="submit" className="w-full mt-4">
+              {isLoading ? "Creating account..." : "Sign up"}
             </Button>
-
-            <div className="text-center text-sm text-gray-300">
-              Already have an account?{" "}
-              <Link href="/auth/signin" className="text-purple-400 hover:text-purple-300 underline">
-                Sign in
-              </Link>
-            </div>
-          </CardFooter>
-        </form>
+          </form>
+        </CardContent>
       </Card>
     </div>
   )
 }
+
+export default SignUpPage
