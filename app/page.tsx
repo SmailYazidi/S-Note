@@ -346,7 +346,24 @@ export default function HomePage() {
                   <Menu className="h-5 w-5" />
                 </Button>
 
-                {currentView === "note-detail" && selectedNote ? (
+             
+              </div>
+
+              <div className="flex items-center space-x-4">
+            
+
+                <ThemeToggle />
+
+        
+                <Button variant="ghost" onClick={handleSignOut} className="text-muted-foreground hover:text-foreground">
+                  Sign Out
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="p-6">   {currentView === "note-detail" && selectedNote ? (
                   <div className="flex items-center space-x-4">
                     <Button
                       variant="ghost"
@@ -366,27 +383,11 @@ export default function HomePage() {
                     </div>
                   </div>
                 ) : (
-                  <h2 className="text-xl font-bold text-foreground">
+                  <h2 className="text-2xl font-bold text-foreground">
                     {currentView === "dashboard" ? "Dashboard" : "All Items"}
                   </h2>
                 )}
-              </div>
-
-              <div className="flex items-center space-x-4">
-            
-
-                <ThemeToggle />
-
-        
-                <Button variant="ghost" onClick={handleSignOut} className="text-muted-foreground hover:text-foreground">
-                  Sign Out
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          {/* Content */}
-          <div className="p-6">
+            <br />
             {currentView === "dashboard" ? (
               <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -498,62 +499,66 @@ export default function HomePage() {
               </div>
             ) : currentView === "note-detail" && selectedNote ? (
               <div className="max-w-4xl mx-auto">
-                <Card>
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm text-muted-foreground">
-                          {selectedNote.type === "password" ? "Password" : "Note"} | Created:{" "}
-                          {new Date(selectedNote.createdAt).toLocaleDateString()} | Last Updated:{" "}
-                          {new Date(selectedNote.updatedAt).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleCopy(selectedNote.content, selectedNote._id)}
-                          disabled={copiedStates[selectedNote._id]}
-                        >
-                          {copiedStates[selectedNote._id] ? (
-                            <Check className="h-4 w-4 text-green-500" />
-                          ) : (
-                            <Copy className="h-4 w-4" />
-                          )}
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => openEditDialog(selectedNote)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDeleteNote(selectedNote._id)}
-                          disabled={isDeleting[selectedNote._id]}
-                          className="text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
+          <Card>
+  <CardContent className="p-6">
+    {/* Header section */}
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+      {/* Info text */}
+      <div className="text-sm text-muted-foreground">
+        {selectedNote.type === "password" ? "Password" : "Note"} | Created:{" "}
+        {new Date(selectedNote.createdAt).toLocaleDateString()} | Last Updated:{" "}
+        {new Date(selectedNote.updatedAt).toLocaleDateString()}
+      </div>
 
-                    <div className="space-y-4">
-                      {selectedNote.type === "password" ? (
-                        <div className="relative">
-                          <div className="flex items-center space-x-2 mb-2">
-                            <span className="text-2xl font-bold text-foreground">
-                              {showPassword ? selectedNote.content : "•".repeat(12)}
-                            </span>
-                            <Button variant="ghost" size="icon" onClick={() => setShowPassword(!showPassword)}>
-                              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="text-foreground whitespace-pre-wrap">{selectedNote.content}</div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
+      {/* Action buttons */}
+      <div className="flex items-center space-x-2 self-end sm:self-auto">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => handleCopy(selectedNote.content, selectedNote._id)}
+          disabled={copiedStates[selectedNote._id]}
+        >
+          {copiedStates[selectedNote._id] ? (
+            <Check className="h-4 w-4 text-green-500" />
+          ) : (
+            <Copy className="h-4 w-4" />
+          )}
+        </Button>
+        <Button variant="ghost" size="icon" onClick={() => openEditDialog(selectedNote)}>
+          <Edit className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => handleDeleteNote(selectedNote._id)}
+          disabled={isDeleting[selectedNote._id]}
+          className="text-destructive hover:text-destructive"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+
+    {/* Content section */}
+    <div className="space-y-4">
+      {selectedNote.type === "password" ? (
+        <div className="relative">
+          <div className="flex flex-wrap items-center space-x-2 mb-2">
+            <span className="text-2xl font-bold text-foreground break-words">
+              {showPassword ? selectedNote.content : "•".repeat(12)}
+            </span>
+            <Button variant="ghost" size="icon" onClick={() => setShowPassword(!showPassword)}>
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="text-foreground whitespace-pre-wrap break-words">{selectedNote.content}</div>
+      )}
+    </div>
+  </CardContent>
+</Card>
+
               </div>
             ) : (
               <div className="space-y-6">
@@ -660,9 +665,17 @@ export default function HomePage() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <h3 className="text-lg font-medium text-foreground truncate">{note.title}</h3>
-                            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                              {note.type === "password" ? "•".repeat(12) : note.content}
-                            </p>
+             <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+  {note.type === "password"
+    ? "•".repeat(12)
+    : (
+        window.innerWidth <= 768
+          ? note.content.slice(0, 40)
+          : note.content.slice(0, 200)
+      ) + (note.content.length > (window.innerWidth <= 768 ? 40 : 200) ? "..." : "")
+  }
+</p>
+
                             <p className="text-xs text-muted-foreground mt-2">
                               Last Updated: {new Date(note.updatedAt).toLocaleDateString()}
                             </p>
