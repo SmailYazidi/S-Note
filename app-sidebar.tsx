@@ -10,8 +10,10 @@ interface AppSidebarProps {
   setCurrentView: (view: "notes" | "dashboard") => void
   handleNewItem: () => void
   setSelectedItemId: (id: string | null) => void
-  setFilterType: (type: "all" | "note" | "password") => void // Added setFilterType
+  setFilterType: (type: "all" | "note" | "password") => void 
 }
+
+
 
 export default function AppSidebar({
   currentView,
