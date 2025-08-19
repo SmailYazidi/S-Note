@@ -136,6 +136,10 @@ export default function HomePage() {
   }
 
 const handleEditNote = async () => {
+
+
+console.log(selectedNote , editNote.title , editNote.content)
+
   if (!selectedNote || !editNote.title.trim() || !editNote.content.trim()) {
     toast({
       title: "Error",
@@ -254,14 +258,16 @@ const handleDeleteNote = async (noteId: string) => {
     setIsSidebarOpen(false)
   }
 
-  const openEditDialog = (note: NoteItem) => {
-    setEditNote({
-      type: note.type,
-      title: note.title,
-      content: note.content,
-    })
-    setIsEditDialogOpen(true)
-  }
+const openEditDialog = (note: NoteItem) => {
+  setSelectedNote(note);  // Ensure you store the selected note
+  setEditNote({
+    type: note.type,
+    title: note.title,
+    content: note.content,
+  });
+  setIsEditDialogOpen(true);
+}
+
 
   const filteredNotes = notes.filter((note) => {
     const matchesSearch =
@@ -544,9 +550,24 @@ const handleDeleteNote = async (noteId: string) => {
             <Copy className="h-4 w-4" />
           )}
         </Button>
-        <Button variant="ghost" size="icon" onClick={() => openEditDialog(selectedNote)}>
-          <Edit className="h-4 w-4" />
-        </Button>
+      <Button
+  variant="ghost"
+  size="icon"
+  onClick={() => {
+    if (selectedNote) {
+      openEditDialog(selectedNote);  // Open dialog only if selectedNote is not null
+    } else {
+      toast({
+        title: "Error",
+        description: "No note selected to edit.",
+        variant: "destructive",
+      });
+    }
+  }}
+>
+  <Edit className="h-4 w-4" />
+</Button>
+
         <Button
           variant="ghost"
           size="icon"
