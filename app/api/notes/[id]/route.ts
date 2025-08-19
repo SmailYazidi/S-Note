@@ -38,11 +38,11 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 })
   }
 }
-
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const authHeader = request.headers.get("authorization")
     if (!authHeader?.startsWith("Bearer ")) {
+      console.log("Authorization header missing or invalid")
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
     }
 
@@ -50,11 +50,12 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     const session = await SessionStore.getSession(sessionId)
 
     if (!session) {
+      console.log("Invalid session for ID:", sessionId)
       return NextResponse.json({ success: false, error: "Invalid session" }, { status: 401 })
     }
 
-    // Simple validation for MongoDB ObjectId format
     if (!params.id || !/^[0-9a-fA-F]{24}$/.test(params.id)) {
+      console.log("Invalid note ID:", params.id)
       return NextResponse.json({ success: false, error: "Invalid note ID" }, { status: 400 })
     }
 
@@ -65,18 +66,28 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     if (content !== undefined) updateData.content = content.trim()
     if (type !== undefined) {
       if (!["note", "password"].includes(type)) {
+        console.log("Invalid note type:", type)
         return NextResponse.json({ success: false, error: "Invalid note type" }, { status: 400 })
       }
       updateData.type = type
     }
 
+    console.log("Update data:", updateData)
+    console.log("Session userId:", session.userId)
+
     await connectDB()
-    const note = await NoteItem.findOneAndUpdate({ _id: params.id, userId: session.userId }, updateData, {
-      new: true,
-      runValidators: true,
-    }).lean()
+
+    // Remove .lean() to ensure Mongoose applies validators and updates correctly
+    const note = await NoteItem.findOneAndUpdate(
+      { _id: params.id, userId: session.userId },
+      updateData,
+      { new: true, runValidators: true }
+    )
+
+    console.log("Update result:", note)
 
     if (!note) {
+      console.log("Note not found or userId mismatch")
       return NextResponse.json({ success: false, error: "Note not found" }, { status: 404 })
     }
 
