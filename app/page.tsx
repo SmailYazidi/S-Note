@@ -135,78 +135,98 @@ export default function HomePage() {
     }
   }
 
-  const handleEditNote = async () => {
-    if (!selectedNote || !editNote.title.trim() || !editNote.content.trim()) {
-      toast({
-        title: "Error",
-        description: "Please fill in all fields",
-        variant: "destructive",
-      })
-      return
-    }
-
-    setIsUpdating(true)
-    try {
-      const result = await notesApi.update(selectedNote._id, editNote)
-      if (result.success && result.data) {
-        await loadNotes()
-        setSelectedNote(result.data)
-        setIsEditDialogOpen(false)
-        toast({
-          title: "Success",
-          description: "Note updated successfully",
-        })
-      } else {
-        toast({
-          title: "Error",
-          description: result.error || "Failed to update note",
-          variant: "destructive",
-        })
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update note",
-        variant: "destructive",
-      })
-    } finally {
-      setIsUpdating(false)
-    }
+const handleEditNote = async () => {
+  if (!selectedNote || !editNote.title.trim() || !editNote.content.trim()) {
+    toast({
+      title: "Error",
+      description: "Please fill in all fields",
+      variant: "destructive",
+    })
+    return
   }
 
-  const handleDeleteNote = async (noteId: string) => {
-    if (!confirm("Are you sure you want to delete this note?")) return
+  setIsUpdating(true)
+  try {
+    const sessionId = localStorage.getItem("sessionId")
+    const response = await fetch(`/api/notes/${selectedNote._id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${sessionId}`,
+      },
+      body: JSON.stringify(editNote),
+    })
 
-    setIsDeleting((prev) => ({ ...prev, [noteId]: true }))
-    try {
-      const result = await notesApi.delete(noteId)
-      if (result.success) {
-        await loadNotes()
-        if (selectedNote?._id === noteId) {
-          setSelectedNote(null)
-          setCurrentView("all-items")
-        }
-        toast({
-          title: "Success",
-          description: "Note deleted successfully",
-        })
-      } else {
-        toast({
-          title: "Error",
-          description: result.error || "Failed to delete note",
-          variant: "destructive",
-        })
-      }
-    } catch (error) {
+    const result = await response.json()
+
+    if (response.ok && result.success && result.data) {
+      await loadNotes()
+      setSelectedNote(result.data)
+      setIsEditDialogOpen(false)
+      toast({
+        title: "Success",
+        description: "Note updated successfully",
+      })
+    } else {
       toast({
         title: "Error",
-        description: "Failed to delete note",
+        description: result.error || "Failed to update note",
         variant: "destructive",
       })
-    } finally {
-      setIsDeleting((prev) => ({ ...prev, [noteId]: false }))
     }
+  } catch (error) {
+    toast({
+      title: "Error",
+      description: "Failed to update note",
+      variant: "destructive",
+    })
+  } finally {
+    setIsUpdating(false)
   }
+}
+
+const handleDeleteNote = async (noteId: string) => {
+  if (!confirm("Are you sure you want to delete this note?")) return
+
+  setIsDeleting((prev) => ({ ...prev, [noteId]: true }))
+  try {
+    const sessionId = localStorage.getItem("sessionId")
+    const response = await fetch(`/api/notes/${noteId}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${sessionId}`,
+      },
+    })
+
+    const result = await response.json()
+
+    if (response.ok && result.success) {
+      await loadNotes()
+      if (selectedNote?._id === noteId) {
+        setSelectedNote(null)
+        setCurrentView("all-items")
+      }
+      toast({
+        title: "Success",
+        description: "Note deleted successfully",
+      })
+    } else {
+      toast({
+        title: "Error",
+        description: result.error || "Failed to delete note",
+        variant: "destructive",
+      })
+    }
+  } catch (error) {
+    toast({
+      title: "Error",
+      description: "Failed to delete note",
+      variant: "destructive",
+    })
+  } finally {
+    setIsDeleting((prev) => ({ ...prev, [noteId]: false }))
+  }
+}
 
   const handleCopy = async (text: string, noteId: string) => {
     try {
