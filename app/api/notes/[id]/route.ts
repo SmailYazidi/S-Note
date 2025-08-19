@@ -7,19 +7,19 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   try {
     const authHeader = request.headers.get("authorization")
     if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
     }
 
     const sessionId = authHeader.substring(7)
     const session = await SessionStore.getSession(sessionId)
 
     if (!session) {
-      return NextResponse.json({ error: "Invalid session" }, { status: 401 })
+      return NextResponse.json({ success: false, error: "Invalid session" }, { status: 401 })
     }
 
     // Simple validation for MongoDB ObjectId format (24 hex characters)
     if (!params.id || !/^[0-9a-fA-F]{24}$/.test(params.id)) {
-      return NextResponse.json({ error: "Invalid note ID" }, { status: 400 })
+      return NextResponse.json({ success: false, error: "Invalid note ID" }, { status: 400 })
     }
 
     await connectDB()
@@ -29,13 +29,13 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     }).lean()
 
     if (!note) {
-      return NextResponse.json({ error: "Note not found" }, { status: 404 })
+      return NextResponse.json({ success: false, error: "Note not found" }, { status: 404 })
     }
 
-    return NextResponse.json(note)
+    return NextResponse.json({ success: true, data: note })
   } catch (error) {
     console.error("Get note error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 })
   }
 }
 
@@ -43,19 +43,19 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   try {
     const authHeader = request.headers.get("authorization")
     if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
     }
 
     const sessionId = authHeader.substring(7)
     const session = await SessionStore.getSession(sessionId)
 
     if (!session) {
-      return NextResponse.json({ error: "Invalid session" }, { status: 401 })
+      return NextResponse.json({ success: false, error: "Invalid session" }, { status: 401 })
     }
 
     // Simple validation for MongoDB ObjectId format
     if (!params.id || !/^[0-9a-fA-F]{24}$/.test(params.id)) {
-      return NextResponse.json({ error: "Invalid note ID" }, { status: 400 })
+      return NextResponse.json({ success: false, error: "Invalid note ID" }, { status: 400 })
     }
 
     const { type, title, content } = await request.json()
@@ -65,7 +65,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     if (content !== undefined) updateData.content = content.trim()
     if (type !== undefined) {
       if (!["note", "password"].includes(type)) {
-        return NextResponse.json({ error: "Invalid note type" }, { status: 400 })
+        return NextResponse.json({ success: false, error: "Invalid note type" }, { status: 400 })
       }
       updateData.type = type
     }
@@ -77,13 +77,13 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     }).lean()
 
     if (!note) {
-      return NextResponse.json({ error: "Note not found" }, { status: 404 })
+      return NextResponse.json({ success: false, error: "Note not found" }, { status: 404 })
     }
 
-    return NextResponse.json(note)
+    return NextResponse.json({ success: true, data: note })
   } catch (error) {
     console.error("Update note error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 })
   }
 }
 
@@ -91,19 +91,19 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
   try {
     const authHeader = request.headers.get("authorization");
     if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
     const sessionId = authHeader.substring(7);
     const session = await SessionStore.getSession(sessionId);
 
     if (!session) {
-      return NextResponse.json({ error: "Invalid session" }, { status: 401 });
+      return NextResponse.json({ success: false, error: "Invalid session" }, { status: 401 });
     }
 
     // Simple validation for MongoDB ObjectId format
     if (!params.id || !/^[0-9a-fA-F]{24}$/.test(params.id)) {
-      return NextResponse.json({ error: "Invalid note ID" }, { status: 400 });
+      return NextResponse.json({ success: false, error: "Invalid note ID" }, { status: 400 });
     }
 
     await connectDB();
@@ -113,12 +113,12 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     });
 
     if (!note) {
-      return NextResponse.json({ error: "Note not found" }, { status: 404 });
+      return NextResponse.json({ success: false, error: "Note not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ message: "Note deleted successfully" });
+    return NextResponse.json({ success: true, message: "Note deleted successfully" });
   } catch (error) {
     console.error("Delete note error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
   }
 }
